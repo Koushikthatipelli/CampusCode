@@ -2618,3 +2618,5 @@ body,
   top: 0;
   z-index: 50;
 }
+
+.footer-logo > span:last-child{display:block}.footer-logo > span:last-child strong{display:block}.footer-logo > span:last-child small{display:block;margin-top:3px;color:#888;font-family:"DM Mono",monospace;font-size:6px;letter-spacing:.18em;font-weight:800}

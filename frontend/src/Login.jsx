@@ -121,11 +121,15 @@ function Login() {
           onClick={() => navigate("/")}
           aria-label="CampusCode home"
         >
-          <img
-            src="/campuscode-assets/logo/campuscode-logo-transparent.png"
-            alt="CampusCode Hackathon Arena"
-            className="login-brand-image"
-          />
+          <span className="login-brand-mark" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span className="login-brand-text">
+            <strong>CAMPUSCODE</strong>
+            <small>HACKATHON ARENA</small>
+          </span>
         </button>
 
         <button

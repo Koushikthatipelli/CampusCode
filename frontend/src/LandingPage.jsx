@@ -106,11 +106,15 @@ export default function LandingPage() {
           onClick={() => goTo("/")}
           aria-label="CampusCode home"
         >
-          <img
-            src="/campuscode-assets/logo/campuscode-logo-transparent.png"
-            alt="CampusCode Hackathon Arena"
-            className="landing-logo-image"
-          />
+          <span className="landing-logo-mark" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </span>
+          <span>
+            <strong>CAMPUSCODE</strong>
+            <small>HACKATHON ARENA</small>
+          </span>
         </button>
 
         <nav className={`landing-links ${menuOpen ? "open" : ""}`}>
@@ -510,11 +514,15 @@ export default function LandingPage() {
         <div className="footer-main">
           <div className="footer-brand">
             <div className="footer-logo">
-              <img
-                src="/campuscode-assets/logo/campuscode-logo-transparent.png"
-                alt="CampusCode Hackathon Arena"
-                className="footer-logo-image"
-              />
+              <span className="footer-mark" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+              <span>
+                <strong>CAMPUSCODE</strong>
+                <small>HACKATHON ARENA</small>
+              </span>
             </div>
 
             <p>
