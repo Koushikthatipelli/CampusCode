@@ -104,7 +104,7 @@ router.get(
 router.get(
   "/admin/pending-approvals",
   requireAuth,
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "SUB_ADMIN"),
   getPendingHackathonApprovals
 );
 

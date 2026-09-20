@@ -112,12 +112,6 @@ import rulebotRoutes from "./routes/rulebot.routes.js";
 import monitoringRoutes from "./routes/monitoring.routes.js";
 
 // =========================================================
-// SUPER ADMIN ROUTES
-// =========================================================
-
-import superadminRoutes from "./routes/superadmin.routes.js";
-
-// =========================================================
 // ENVIRONMENT
 // =========================================================
 
@@ -183,8 +177,32 @@ app.get("/api/health", async (req, res) => {
     });
   } catch (error) {
     console.error(
-      "Database health check failed:",
-      error.message
+      "❌ Database health check failed:",
+      {
+        message:
+          error?.message ||
+          "Unknown database error",
+
+        code:
+          error?.code ||
+          "NO_CODE",
+
+        name:
+          error?.name ||
+          "UnknownError",
+
+        detail:
+          error?.detail ||
+          null,
+
+        hint:
+          error?.hint ||
+          null,
+
+        stack:
+          error?.stack ||
+          null,
+      }
     );
 
     res.status(500).json({
@@ -192,6 +210,16 @@ app.get("/api/health", async (req, res) => {
       service: "CampusCode Backend",
       status: "unhealthy",
       database: "disconnected",
+
+      error: {
+        message:
+          error?.message ||
+          "Database connection failed",
+
+        code:
+          error?.code ||
+          "NO_CODE",
+      },
     });
   }
 });
@@ -549,39 +577,6 @@ app.use(
 );
 
 // =========================================================
-// SUPER ADMIN
-// =========================================================
-//
-// Super Admin command center endpoints:
-//
-// GET    /api/superadmin/overview
-// GET    /api/superadmin/health
-// GET    /api/superadmin/stats
-// GET    /api/superadmin/requests
-// GET    /api/superadmin/errors
-// GET    /api/superadmin/response-time
-// GET    /api/superadmin/blueprint
-// GET    /api/superadmin/blueprint/:nodeId
-// GET    /api/superadmin/activity
-// GET    /api/superadmin/maintenance
-// PATCH  /api/superadmin/maintenance
-// DELETE /api/superadmin/telemetry
-// GET    /api/superadmin/telemetry
-//
-// Current authentication uses ADMIN because the existing
-// CampusCode role system currently has ADMIN / ORGANIZER / STUDENT.
-//
-// When a dedicated SUPER_ADMIN role is added to auth,
-// change requireRole("ADMIN") inside superadmin.routes.js
-// to requireRole("SUPER_ADMIN").
-//
-
-app.use(
-  "/api/superadmin",
-  superadminRoutes
-);
-
-// =========================================================
 // 404 HANDLER
 // =========================================================
 
@@ -605,11 +600,28 @@ app.use(
     next
   ) => {
     req.monitoringError =
-      error.message;
+      error?.message ||
+      "Unknown server error";
 
     console.error(
-      "Server error:",
-      error
+      "❌ Server error:",
+      {
+        message:
+          error?.message ||
+          "Unknown server error",
+
+        code:
+          error?.code ||
+          "NO_CODE",
+
+        name:
+          error?.name ||
+          "UnknownError",
+
+        stack:
+          error?.stack ||
+          null,
+      }
     );
 
     res.status(500).json({
@@ -629,10 +641,6 @@ app.listen(
   () => {
     console.log(
       `CampusCode API running on port ${PORT}`
-    );
-
-    console.log(
-      "Super Admin API: /api/superadmin"
     );
 
     console.log(

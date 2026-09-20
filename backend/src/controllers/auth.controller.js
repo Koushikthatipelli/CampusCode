@@ -53,7 +53,7 @@ export const register = async (req, res) => {
 
     /*
       IMPORTANT:
-      SUPER_ADMIN is intentionally NOT allowed
+      SUB_ADMIN is intentionally NOT allowed
       through public registration.
     */
 
@@ -234,9 +234,9 @@ export const login = async (req, res) => {
     }
 
     /*
-      SUPER_ADMIN is a valid authenticated role.
+      SUB_ADMIN is a valid authenticated role.
 
-      The account is created manually in Neon
+      Sub-admin accounts are created by an ADMIN
       and cannot be created through public registration.
     */
 
@@ -244,7 +244,7 @@ export const login = async (req, res) => {
       "STUDENT",
       "ORGANIZER",
       "ADMIN",
-      "SUPER_ADMIN",
+      "SUB_ADMIN",
     ];
 
     if (!validRoles.includes(user.role)) {

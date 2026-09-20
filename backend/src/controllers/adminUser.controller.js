@@ -1,4 +1,118 @@
+import bcrypt from "bcryptjs";
 import pool from "../config/db.js";
+
+
+
+/*
+=========================================================
+CREATE SUB-ADMIN
+POST /api/users/admin/subadmins
+ADMIN ONLY
+=========================================================
+*/
+
+export const createSubAdmin = async (req, res) => {
+  try {
+    const { name, email, password, campus_code_id = null } = req.body;
+
+    if (!name?.trim() || !email?.trim() || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email and password are required",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existing = await pool.query(
+      "SELECT id FROM users WHERE email = $1",
+      [normalizedEmail]
+    );
+
+    if (existing.rows.length) {
+      return res.status(409).json({
+        success: false,
+        message: "An account with this email already exists",
+      });
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+
+    const result = await pool.query(
+      `
+      INSERT INTO users
+        (name, email, password_hash, role, campus_code_id, is_active)
+      VALUES
+        ($1, $2, $3, 'SUB_ADMIN', $4, TRUE)
+      RETURNING
+        id, campus_code_id, name, email, role, is_active, created_at
+      `,
+      [name.trim(), normalizedEmail, passwordHash, campus_code_id?.trim() || null]
+    );
+
+    return res.status(201).json({
+      success: true,
+      message: "Sub-admin created successfully",
+      user: result.rows[0],
+    });
+  } catch (error) {
+    console.error("CREATE SUB-ADMIN ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to create sub-admin",
+    });
+  }
+};
+
+
+/*
+=========================================================
+GET SUB-ADMINS
+GET /api/users/admin/subadmins
+ADMIN ONLY
+=========================================================
+*/
+
+export const getSubAdmins = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        id,
+        campus_code_id,
+        name,
+        email,
+        role,
+        bio,
+        skills,
+        avatar_url,
+        is_active,
+        created_at
+      FROM users
+      WHERE role = 'SUB_ADMIN'
+      ORDER BY created_at DESC
+    `);
+
+    return res.status(200).json({
+      success: true,
+      subAdmins: result.rows,
+    });
+  } catch (error) {
+    console.error("GET SUB-ADMINS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch sub-admins",
+    });
+  }
+};
 
 /*
 =========================================================
@@ -107,10 +221,13 @@ export const updateUserStatus = async (req, res) => {
       });
     }
 
-    if (existingUser.rows[0].role === "ADMIN") {
+    if (
+      existingUser.rows[0].role === "ADMIN" ||
+      (existingUser.rows[0].role === "SUB_ADMIN" && req.user.role !== "ADMIN")
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Admin accounts cannot be blocked",
+        message: "You do not have permission to change this administrator account",
       });
     }
 
@@ -200,10 +317,13 @@ export const deleteUser = async (req, res) => {
     /*
      * Protect ADMIN accounts.
      */
-    if (existingUser.rows[0].role === "ADMIN") {
+    if (
+      existingUser.rows[0].role === "ADMIN" ||
+      (existingUser.rows[0].role === "SUB_ADMIN" && req.user.role !== "ADMIN")
+    ) {
       return res.status(403).json({
         success: false,
-        message: "Admin accounts cannot be deleted",
+        message: "You do not have permission to delete this administrator account",
       });
     }
 

@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
 
     role VARCHAR(20) NOT NULL DEFAULT 'STUDENT'
-        CHECK (role IN ('STUDENT', 'ORGANIZER', 'ADMIN')),
+        CHECK (role IN ('STUDENT', 'ORGANIZER', 'ADMIN', 'SUB_ADMIN')),
 
     avatar_url TEXT,
 

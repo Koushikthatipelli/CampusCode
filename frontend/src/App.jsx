@@ -18,7 +18,6 @@ import StudentPanel from "./StudentPanel";
 import OrganizerPanel from "./OrganizerPanel";
 import AdminPanel from "./AdminPanel";
 
-import SuperAdminPanel from "./pages/SuperAdminPanel";
 
 
 /* =========================================================
@@ -98,15 +97,6 @@ function RoleRoute({
       return (
         <Navigate
           to="/admin"
-          replace
-        />
-      );
-    }
-
-    if (actualRole === "SUPER_ADMIN") {
-      return (
-        <Navigate
-          to="/superadmin"
           replace
         />
       );
@@ -306,52 +296,6 @@ function AdminPage() {
 
 
 /* =========================================================
-   SUPER ADMIN PAGE
-========================================================= */
-
-function SuperAdminPage() {
-
-  const navigate =
-    useNavigate();
-
-
-  const handleLogout = () => {
-
-    localStorage.removeItem(
-      "token"
-    );
-
-    localStorage.removeItem(
-      "user"
-    );
-
-    localStorage.removeItem(
-      "role"
-    );
-
-    navigate(
-      "/login",
-      {
-        replace: true,
-      }
-    );
-  };
-
-
-  const user =
-    getStoredUser();
-
-
-  return (
-    <SuperAdminPanel
-      user={user}
-      onLogout={handleLogout}
-    />
-  );
-}
-
-
-/* =========================================================
    APP
 ========================================================= */
 
@@ -479,22 +423,6 @@ function App() {
               role="ADMIN"
             >
               <AdminPage />
-            </RoleRoute>
-          }
-        />
-
-
-        {/* ===================================================
-            SUPER ADMIN / MONITORING
-        =================================================== */}
-
-        <Route
-          path="/superadmin"
-          element={
-            <RoleRoute
-              role="SUPER_ADMIN"
-            >
-              <SuperAdminPage />
             </RoleRoute>
           }
         />

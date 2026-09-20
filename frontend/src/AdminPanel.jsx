@@ -1,21 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import "./AdminPanel.css";
-import CampusCodeLoader from "./components/ui/CampusCodeLoader";
 
 import {
   Activity,
   AlertCircle,
+  ArrowLeft,
   BarChart3,
   Bell,
+  Boxes,
+  BrainCircuit,
   CheckCircle2,
   ChevronRight,
   Clock3,
   Database,
   FileCheck2,
+  Globe2,
   LayoutDashboard,
   LoaderCircle,
   LogOut,
   Menu,
+  Network,
   MessageSquare,
   RefreshCw,
   Search,
@@ -59,7 +63,10 @@ const navGroups = [
   },
   {
     label: "System",
-    items: [["activity", "System Activity", Activity]],
+    items: [
+      ["activity", "System Activity", Activity],
+      ["system", "System Blueprint", Network],
+    ],
   },
   {
     label: "Account",
@@ -118,8 +125,9 @@ function Logo() {
 
 function Loading() {
   return (
-    <div className="admin-loading campuscode-panel-loader">
-      <CampusCodeLoader fullScreen={false} text="Loading" subtext="Syncing backend data" />
+    <div className="admin-loading">
+      <LoaderCircle size={24} className="spin" />
+      <span>Loading live backend data...</span>
     </div>
   );
 }
@@ -1555,6 +1563,8 @@ function UsersPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [busy, setBusy] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -1574,6 +1584,73 @@ function UsersPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const toggleUser = async (user) => {
+    if (!user?.id) return;
+
+    if (String(user.role || "").toUpperCase() === "ADMIN") {
+      setError("Administrator accounts cannot be blocked from this panel.");
+      return;
+    }
+
+    const nextActive = user.is_active === false;
+
+    setBusy(`status-${user.id}`);
+    setError("");
+    setSuccess("");
+
+    try {
+      await apiFetch(`/users/admin/${user.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_active: nextActive }),
+      });
+
+      setSuccess(
+        `${user.name || "User"} has been ${nextActive ? "unblocked" : "blocked"}.`
+      );
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const deleteUser = async (user) => {
+    if (!user?.id) return;
+
+    if (String(user.role || "").toUpperCase() === "ADMIN") {
+      setError("Administrator accounts cannot be deleted from this panel.");
+      return;
+    }
+
+    const name = user.name || user.email || "this user";
+
+    if (
+      !window.confirm(
+        `Delete "${name}"?\n\nThis permanently removes the user account. If the account is referenced by protected records, the backend will safely reject the deletion.`
+      )
+    ) {
+      return;
+    }
+
+    setBusy(`delete-${user.id}`);
+    setError("");
+    setSuccess("");
+
+    try {
+      await apiFetch(`/users/admin/${user.id}`, {
+        method: "DELETE",
+      });
+
+      setSuccess("User deleted successfully.");
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy("");
+    }
+  };
 
   const filtered = useMemo(
     () =>
@@ -1596,7 +1673,7 @@ function UsersPage() {
             User <span>directory.</span>
           </>
         }
-        description="Review platform accounts returned by the administrator users API."
+        description="Manage live CampusCode accounts, access status and account removal."
         action={
           <button className="admin-refresh" onClick={load}>
             <RefreshCw size={15} />
@@ -1606,14 +1683,19 @@ function UsersPage() {
       />
 
       {error && <ErrorBox message={error} />}
+      {success && (
+        <div className="admin-success">
+          <CheckCircle2 size={16} />
+          {success}
+        </div>
+      )}
 
       <div className="admin-user-control-note">
-        <Ban size={15} />
+        <ShieldCheck size={15} />
         <span>
-          User block/delete controls are shown only when the backend exposes
-          those administrator mutation endpoints. The currently supplied
-          user API does not expose verified block/delete routes, so no fake
-          destructive action is wired here.
+          Blocking changes <b>is_active</b> and immediately prevents that account
+          from logging in. Deletion is permanent and is protected by the
+          database relationships.
         </span>
       </div>
 
@@ -1636,7 +1718,7 @@ function UsersPage() {
         <Loading />
       ) : filtered.length ? (
         <div className="admin-table-wrap">
-          <table className="admin-table">
+          <table className="admin-table admin-user-table">
             <thead>
               <tr>
                 <th>User</th>
@@ -1644,56 +1726,88 @@ function UsersPage() {
                 <th>Campus ID</th>
                 <th>Status</th>
                 <th>Joined</th>
+                <th>Actions</th>
               </tr>
             </thead>
 
             <tbody>
-              {filtered.map((user) => (
-                <tr key={user.id}>
-                  <td>
-                    <div className="table-user">
-                      <div className="admin-avatar">
-                        {(user.name || "U")
-                          .charAt(0)
-                          .toUpperCase()}
+              {filtered.map((user) => {
+                const isAdmin = String(user.role || "").toUpperCase() === "ADMIN";
+                const blocked = user.is_active === false;
+
+                return (
+                  <tr key={user.id}>
+                    <td>
+                      <div className="table-user">
+                        <div className="admin-avatar">
+                          {(user.name || "U").charAt(0).toUpperCase()}
+                        </div>
+
+                        <div>
+                          <strong>{value(user.name)}</strong>
+                          <span>{value(user.email)}</span>
+                        </div>
                       </div>
+                    </td>
 
-                      <div>
-                        <strong>{value(user.name)}</strong>
-                        <span>{value(user.email)}</span>
+                    <td>
+                      <span
+                        className={`role-badge ${String(
+                          user.role || ""
+                        ).toLowerCase()}`}
+                      >
+                        {value(user.role)}
+                      </span>
+                    </td>
+
+                    <td>{value(user.campus_code_id)}</td>
+
+                    <td>
+                      <span
+                        className={`status-badge ${blocked ? "blocked" : "active"}`}
+                      >
+                        {blocked ? "BLOCKED" : "ACTIVE"}
+                      </span>
+                    </td>
+
+                    <td>{formatDate(user.created_at)}</td>
+
+                    <td>
+                      <div className="admin-user-actions">
+                        <button
+                          className={`user-action ${blocked ? "restore" : "block"}`}
+                          disabled={!!busy || isAdmin}
+                          title={isAdmin ? "Admin accounts are protected" : blocked ? "Unblock user" : "Block user"}
+                          onClick={() => toggleUser(user)}
+                        >
+                          {busy === `status-${user.id}` ? (
+                            <LoaderCircle className="spin" size={14} />
+                          ) : blocked ? (
+                            <CheckCircle2 size={14} />
+                          ) : (
+                            <Ban size={14} />
+                          )}
+                          {blocked ? "Unblock" : "Block"}
+                        </button>
+
+                        <button
+                          className="user-action delete"
+                          disabled={!!busy || isAdmin}
+                          title={isAdmin ? "Admin accounts are protected" : "Delete user"}
+                          onClick={() => deleteUser(user)}
+                        >
+                          {busy === `delete-${user.id}` ? (
+                            <LoaderCircle className="spin" size={14} />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                          Delete
+                        </button>
                       </div>
-                    </div>
-                  </td>
-
-                  <td>
-                    <span
-                      className={`role-badge ${String(
-                        user.role || ""
-                      ).toLowerCase()}`}
-                    >
-                      {value(user.role)}
-                    </span>
-                  </td>
-
-                  <td>{value(user.campus_code_id)}</td>
-
-                  <td>
-                    <span
-                      className={`status-badge ${
-                        user.is_active === false
-                          ? "blocked"
-                          : "active"
-                      }`}
-                    >
-                      {user.is_active === false
-                        ? "BLOCKED"
-                        : "ACTIVE"}
-                    </span>
-                  </td>
-
-                  <td>{formatDate(user.created_at)}</td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1706,7 +1820,6 @@ function UsersPage() {
     </div>
   );
 }
-
 
 /* =========================================================
    TEAMS
@@ -2346,6 +2459,382 @@ function ResultsPage() {
 }
 
 
+
+/* =========================================================
+   SYSTEM BLUEPRINT / ADMIN DIGITAL TWIN
+   Former Super Admin blueprint visual + interactions, now
+   integrated into the Admin panel.
+========================================================= */
+
+const ADMIN_BLUEPRINT = {
+  campuscode: {
+    id: "campuscode", name: "CAMPUSCODE", type: "PLATFORM", status: "ONLINE",
+    description: "CampusCode production platform and service topology.",
+    details: "The complete CampusCode platform connecting portals, backend services, PostgreSQL data, AI services and observability.",
+    children: ["frontend", "backend", "database", "ai", "monitoring"],
+  },
+  frontend: {
+    id: "frontend", name: "FRONTEND", type: "APPLICATION", status: "ONLINE",
+    description: "React application layer serving all CampusCode portals.",
+    details: "Client-side application containing the Student, Organizer and Admin experiences and their supporting pages.",
+    children: ["student", "organizer", "admin"],
+  },
+  student: {
+    id: "student", name: "STUDENT PAGE", type: "PORTAL", status: "ONLINE",
+    description: "Student-facing portal for hackathons, teams, submissions, IdeaCheck and results.",
+    details: "Student workspace for discovering hackathons, joining teams, submitting projects, using AI assistance and viewing competition outcomes.",
+    children: ["student-overview", "student-hackathons", "student-team", "student-project", "student-rounds", "student-ideacheck", "student-rulebot", "student-leaderboard", "student-notifications"],
+  },
+  organizer: {
+    id: "organizer", name: "ORGANIZER PAGE", type: "PORTAL", status: "ONLINE",
+    description: "Organizer portal for hackathon management, round reviews, decisions and feedback.",
+    details: "Organizer workspace for creating and managing hackathons, reviewing rounds, making decisions, publishing feedback and managing results.",
+    children: ["organizer-dashboard", "organizer-hackathons", "organizer-r1", "organizer-r2", "organizer-r3", "organizer-results", "organizer-notifications"],
+  },
+  admin: {
+    id: "admin", name: "ADMIN PAGE", type: "PORTAL", status: "ONLINE",
+    description: "Admin control layer for platform governance and administration.",
+    details: "Administrative control surface for users, hackathons, teams, submissions, evaluations, results, notifications and system operations.",
+    children: ["admin-dashboard", "admin-users", "admin-hackathons", "admin-teams", "admin-submissions", "admin-results", "admin-notifications", "admin-system"],
+  },
+  backend: {
+    id: "backend", name: "BACKEND API", type: "BACKEND", status: "ONLINE",
+    description: "Node.js and Express API layer handling authentication, modules and platform workflows.",
+    details: "The API layer receives authenticated requests, enforces role access, coordinates business logic and communicates with PostgreSQL and AI services.",
+    children: ["backend-auth", "backend-users", "backend-hackathons", "backend-teams", "backend-rounds", "backend-results", "backend-ideacheck", "backend-rulebot", "backend-notifications"],
+  },
+  database: {
+    id: "database", name: "NEON POSTGRESQL", type: "DATABASE", status: "ONLINE",
+    description: "Primary PostgreSQL data layer for CampusCode.",
+    details: "Persistent platform data including users, hackathons, participants, teams, submissions, round decisions, AI analysis and notifications.",
+    children: ["db-users", "db-hackathons", "db-participants", "db-teams", "db-submissions", "db-results", "db-ai", "db-notifications"],
+  },
+  ai: {
+    id: "ai", name: "GEMINI AI", type: "AI ENGINE", status: "ONLINE",
+    description: "AI service used by supported CampusCode analysis workflows.",
+    details: "AI layer supporting project analysis, recommendations and selected intelligence workflows while keeping organizer control over decisions.",
+    children: ["ai-r1", "ai-r2", "ai-ideacheck", "ai-rulebot"],
+  },
+  monitoring: {
+    id: "monitoring", name: "OBSERVABILITY", type: "MONITORING", status: "ONLINE",
+    description: "Request, error, latency and platform activity telemetry.",
+    details: "System observability layer used to inspect health, requests, errors, response time and platform activity.",
+    children: ["monitoring-requests", "monitoring-errors", "monitoring-health", "monitoring-activity"],
+  },
+};
+
+const ADMIN_BLUEPRINT_EXTRA = {
+  "student-overview": ["OVERVIEW", "PAGE", "Student dashboard and current competition state.", "Student landing and summary surface."],
+  "student-hackathons": ["HACKATHONS", "MODULE", "Discover, view and join available hackathons.", "Hackathon discovery and registration flow."],
+  "student-team": ["MY TEAM", "MODULE", "Team creation, membership and team workspace.", "Student team management workflow."],
+  "student-project": ["MY PROJECT", "MODULE", "Project details and submission workspace.", "Student project and submission preparation."],
+  "student-rounds": ["R1 / R2 / R3", "MODULE", "Round status, submissions, decisions and feedback.", "Multi-round competition lifecycle."],
+  "student-ideacheck": ["IDEACHECK AI", "AI MODULE", "Similarity and originality analysis workflow.", "AI-assisted idea comparison."],
+  "student-rulebot": ["RULEBOT", "AI MODULE", "Hackathon rule assistance and student guidance.", "Rule-aware assistance module."],
+  "student-leaderboard": ["LEADERBOARD", "MODULE", "Published competition ranking and results.", "Results visibility for students."],
+  "student-notifications": ["NOTIFICATIONS", "MODULE", "Student-facing competition and platform notifications.", "Notification delivery surface."],
+  "organizer-dashboard": ["DASHBOARD", "PAGE", "Organizer overview and active hackathon state.", "Organizer command surface."],
+  "organizer-hackathons": ["HACKATHONS", "MODULE", "Create, configure and manage organizer hackathons.", "Hackathon management workflow."],
+  "organizer-r1": ["ROUND 1", "REVIEW MODULE", "Review Round 1 submissions and AI analysis.", "Organizer Round 1 evaluation."],
+  "organizer-r2": ["ROUND 2", "REVIEW MODULE", "Review Round 2 submissions and AI analysis.", "Organizer Round 2 evaluation."],
+  "organizer-r3": ["ROUND 3", "MANUAL REVIEW", "Manual scoring, decisions and organizer feedback.", "Final manual competition review."],
+  "organizer-results": ["RESULTS", "MODULE", "Result request, publication and leaderboard workflow.", "Organizer result workflow."],
+  "organizer-notifications": ["NOTIFICATIONS", "MODULE", "Organizer-facing notifications and updates.", "Organizer notification surface."],
+  "admin-dashboard": ["DASHBOARD", "PAGE", "Platform administration overview and controls.", "Admin dashboard."],
+  "admin-users": ["USERS", "MODULE", "User administration, roles and account state.", "Administrative user management."],
+  "admin-hackathons": ["HACKATHONS", "MODULE", "Hackathon administration and platform oversight.", "Administrative hackathon management."],
+  "admin-teams": ["TEAMS", "MODULE", "Team administration and participant oversight.", "Administrative team management."],
+  "admin-submissions": ["SUBMISSIONS", "MODULE", "Submission and evaluation oversight.", "Administrative submission management."],
+  "admin-results": ["RESULT APPROVAL", "MODULE", "Review and approve/reject organizer result requests.", "Administrative result approval."],
+  "admin-notifications": ["NOTIFICATIONS", "MODULE", "Platform notification controls.", "Administrative notification management."],
+  "admin-system": ["SYSTEM BLUEPRINT", "SYSTEM", "Interactive architecture, health and system controls.", "Admin-integrated platform observability."],
+  "backend-auth": ["AUTH", "API MODULE", "JWT authentication and role-based authorization.", "Authentication and authorization API."],
+  "backend-users": ["USERS", "API MODULE", "User and role management APIs.", "User service endpoints."],
+  "backend-hackathons": ["HACKATHONS", "API MODULE", "Hackathon creation, discovery, registration and administration APIs.", "Hackathon service endpoints."],
+  "backend-teams": ["TEAMS", "API MODULE", "Team creation, membership and project relationships.", "Team service endpoints."],
+  "backend-rounds": ["ROUNDS", "API MODULE", "Round 1, Round 2 and Round 3 lifecycle APIs.", "Competition round services."],
+  "backend-results": ["RESULTS", "API MODULE", "Result requests, approval and leaderboard APIs.", "Result service endpoints."],
+  "backend-ideacheck": ["IDEACHECK", "API MODULE", "Similarity and originality analysis API.", "IdeaCheck service."],
+  "backend-rulebot": ["RULEBOT", "API MODULE", "Rule assistance API.", "RuleBot service."],
+  "backend-notifications": ["NOTIFICATIONS", "API MODULE", "Notification creation and retrieval APIs.", "Notification service."],
+  "db-users": ["USERS", "TABLE GROUP", "User identity, roles and account state.", "Core user records."],
+  "db-hackathons": ["HACKATHONS", "TABLE GROUP", "Hackathon configuration and lifecycle data.", "Hackathon records."],
+  "db-participants": ["PARTICIPANTS", "TABLE GROUP", "Hackathon participation relationships.", "Participant records."],
+  "db-teams": ["TEAMS", "TABLE GROUP", "Team and membership data.", "Team records."],
+  "db-submissions": ["SUBMISSIONS", "TABLE GROUP", "Project and round submission data.", "Submission records."],
+  "db-results": ["RESULTS", "TABLE GROUP", "Result requests, decisions and leaderboard data.", "Result records."],
+  "db-ai": ["AI ANALYSIS", "TABLE GROUP", "AI scores, feedback and analysis metadata.", "AI analysis records."],
+  "db-notifications": ["NOTIFICATIONS", "TABLE GROUP", "Notification and delivery records.", "Notification records."],
+  "ai-r1": ["R1 ANALYSIS", "AI FLOW", "AI-assisted Round 1 project analysis.", "Gemini analysis flow."],
+  "ai-r2": ["R2 ANALYSIS", "AI FLOW", "AI-assisted Round 2 project analysis.", "Gemini analysis flow."],
+  "ai-ideacheck": ["IDEACHECK", "AI FLOW", "Similarity analysis using project descriptions and scoring.", "IdeaCheck intelligence flow."],
+  "ai-rulebot": ["RULEBOT", "AI FLOW", "Rule-aware student assistance.", "RuleBot assistance flow."],
+  "monitoring-requests": ["REQUEST TELEMETRY", "TELEMETRY", "HTTP request method, endpoint, status, role and response time.", "Monitoring request logs."],
+  "monitoring-errors": ["ERROR TELEMETRY", "TELEMETRY", "Captured API error messages and failed requests.", "Monitoring error logs."],
+  "monitoring-health": ["HEALTH CHECKS", "TELEMETRY", "API, database and AI health state.", "Platform health monitoring."],
+  "monitoring-activity": ["SYSTEM ACTIVITY", "TELEMETRY", "Recent platform and administrative activity.", "Activity monitoring."],
+};
+
+function adminBlueprintNode(id) {
+  if (ADMIN_BLUEPRINT[id]) return ADMIN_BLUEPRINT[id];
+  const extra = ADMIN_BLUEPRINT_EXTRA[id];
+  if (extra) return { id, name: extra[0], type: extra[1], status: "ONLINE", description: extra[2], details: extra[3], children: [] };
+  return { id, name: String(id || "UNKNOWN").replaceAll("-", " ").toUpperCase(), type: "SERVICE", status: "ONLINE", description: "CampusCode system component.", details: "System component.", children: [] };
+}
+
+function adminBlueprintIcon(type) {
+  const t = String(type || "").toLowerCase();
+  if (t.includes("database") || t.includes("table")) return Database;
+  if (t.includes("ai")) return BrainCircuit;
+  if (t.includes("backend") || t.includes("api")) return Server;
+  if (t.includes("monitor") || t.includes("telemetry")) return Activity;
+  if (t.includes("portal") || t.includes("page") || t.includes("application")) return Globe2;
+  if (t.includes("system")) return Network;
+  return Boxes;
+}
+
+function AdminBlueprintNode({ node, x, y, selected, onClick }) {
+  const Icon = adminBlueprintIcon(node.type);
+  return (
+    <button type="button" className={`admin-blueprint-node ${selected ? "selected" : ""}`} style={{ left: `${x}%`, top: `${y}%` }} onClick={() => onClick(node)}>
+      <span className="admin-blueprint-node-shadow" />
+      <span className="admin-blueprint-node-face">
+        <span className="admin-blueprint-node-top"><Icon size={16} /><i /></span>
+        <strong>{node.name}</strong>
+        <small>{node.type}</small>
+      </span>
+      <span className="admin-blueprint-node-side" />
+      <span className="admin-blueprint-node-pulse" />
+    </button>
+  );
+}
+
+function AdminBlueprintScene({ rootId, selectedId, onNodeClick }) {
+  const root = adminBlueprintNode(rootId);
+  const children = (root.children || []).map(adminBlueprintNode);
+  const positions = [[18,50],[37,22],[37,78],[62,22],[62,78],[82,50]];
+  const visible = children.slice(0, 6);
+
+  return (
+    <div className="admin-blueprint-scene">
+      <div className="admin-blueprint-stars" />
+      <div className="admin-blueprint-grid" />
+      <div className="admin-blueprint-vignette" />
+
+      <div className="admin-blueprint-label"><span>INTERACTIVE DIGITAL TWIN / LIVE TOPOLOGY</span><strong>{root.name}</strong></div>
+      <div className="admin-blueprint-code">CC / ARCH-01<br /><b>LIVE MAP</b></div>
+
+      <div className="admin-blueprint-floor"><i /><i /><i /></div>
+
+      <svg className="admin-blueprint-connections" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {visible.map((child, index) => {
+          const [x, y] = positions[index];
+          return <g key={child.id}>
+            <line x1="50" y1="50" x2={x} y2={y} className="admin-blueprint-line" />
+            <circle r=".8" className="admin-blueprint-packet">
+              <animate attributeName="cx" values={`50;${x};50`} dur={`${2.7 + index * .3}s`} repeatCount="indefinite" />
+              <animate attributeName="cy" values={`50;${y};50`} dur={`${2.7 + index * .3}s`} repeatCount="indefinite" />
+            </circle>
+          </g>;
+        })}
+      </svg>
+
+      <div className="admin-blueprint-core">
+        <div className="admin-blueprint-ring ring-a" />
+        <div className="admin-blueprint-ring ring-b" />
+        <div className="admin-blueprint-ring ring-c" />
+        <div className="admin-blueprint-core-card">
+          <div className="admin-blueprint-core-glow" />
+          <Network size={25} />
+          <strong>{root.name}</strong>
+          <small>{root.type}</small>
+          <span><i /> {root.status}</span>
+        </div>
+      </div>
+
+      {visible.map((child, index) => {
+        const [x, y] = positions[index];
+        return <AdminBlueprintNode key={child.id} node={child} x={x} y={y} selected={selectedId === child.id} onClick={onNodeClick} />;
+      })}
+
+      <div className="admin-blueprint-legend"><span><i className="live" /> LIVE</span><span><i className="flow" /> REQUEST FLOW</span><span><i className="node" /> CLICK NODE</span></div>
+      <div className="admin-blueprint-depth">NODE DEPTH: {children.length}</div>
+      <div className="admin-blueprint-help">Click any module to open its architecture. Click a module with children to enter its blueprint.</div>
+    </div>
+  );
+}
+
+function BlueprintNodeModal({ node, details, onClose, onEnter }) {
+  if (!node) return null;
+  const Icon = adminBlueprintIcon(node.type);
+  const detail = details || node;
+  const children = (node.children || []).map(adminBlueprintNode);
+
+  return (
+    <div className="admin-blueprint-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <section className="admin-blueprint-modal" role="dialog" aria-modal="true">
+        <button type="button" className="admin-blueprint-modal-close" onClick={onClose}><X size={17} /></button>
+        <div className="admin-blueprint-modal-head">
+          <div className="admin-blueprint-modal-icon"><Icon size={24} /></div>
+          <div><span>NODE INSPECTOR / ARCHITECTURE</span><h2>{node.name}</h2><small>{node.type} · {node.status}</small></div>
+        </div>
+
+        <div className="admin-blueprint-modal-status"><i /> SYSTEM {String(node.status).toUpperCase()}</div>
+
+        <div className="admin-blueprint-modal-section"><span>DESCRIPTION</span><p>{node.description}</p><p className="detail">{node.details}</p></div>
+
+        <div className="admin-blueprint-modal-grid">
+          <div><span>NODE ID</span><strong>{node.id}</strong></div>
+          <div><span>TYPE</span><strong>{node.type}</strong></div>
+          <div><span>STATUS</span><strong>{node.status}</strong></div>
+          <div><span>CHILD MODULES</span><strong>{children.length}</strong></div>
+        </div>
+
+        {children.length > 0 && <div className="admin-blueprint-modal-section"><span>CONNECTED MODULES</span><div className="admin-blueprint-child-list">{children.map(child => <button key={child.id} type="button" onClick={() => onEnter(child)}><b>{child.name}</b><small>{child.type}</small><ChevronRight size={14} /></button>)}</div></div>}
+
+        <div className="admin-blueprint-modal-section"><span>LIVE BACKEND DETAILS</span><pre>{JSON.stringify(detail, null, 2)}</pre></div>
+
+        <div className="admin-blueprint-modal-actions">
+          {children.length > 0 && <button type="button" className="primary" onClick={() => onEnter(node)}><Network size={14} /> OPEN {node.name} BLUEPRINT</button>}
+          <button type="button" className="secondary" onClick={onClose}>CLOSE</button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function SystemBlueprintPage() {
+  const [blueprint, setBlueprint] = useState(null);
+  const [health, setHealth] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [maintenance, setMaintenance] = useState(null);
+  const [rootId, setRootId] = useState("campuscode");
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [nodeDetails, setNodeDetails] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const load = async () => {
+    setLoading(true); setError("");
+    try {
+      const [bp, h, s, m] = await Promise.all([
+        apiFetch("/superadmin/blueprint"),
+        apiFetch("/superadmin/health"),
+        apiFetch("/superadmin/stats"),
+        apiFetch("/superadmin/maintenance"),
+      ]);
+      setBlueprint(bp?.blueprint || bp?.system || bp?.data || bp || {});
+      setHealth(h); setStats(s?.statistics || s?.stats || s?.data || s || {}); setMaintenance(m);
+    } catch (e) { setError(e.message || "Unable to load CampusCode system blueprint."); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const maintenanceEnabled = Boolean(maintenance?.enabled ?? maintenance?.maintenance_mode);
+  const backendNodes = Array.isArray(blueprint?.nodes) ? blueprint.nodes : [];
+
+  const openNode = async (node) => {
+    setSelectedNode(node); setNodeDetails(null); setError("");
+    try {
+      const result = await apiFetch(`/superadmin/blueprint/${encodeURIComponent(node.id)}`);
+      setNodeDetails(result?.node || result?.data || result);
+    } catch { setNodeDetails(node); }
+  };
+
+  const enterBlueprint = (node) => {
+    if (node.children?.length) {
+      setRootId(node.id); setSelectedNode(null); setNodeDetails(null);
+    } else {
+      openNode(node);
+    }
+  };
+
+  const goBack = () => {
+    if (rootId === "campuscode") return;
+    const parent = Object.values(ADMIN_BLUEPRINT).find(n => (n.children || []).includes(rootId));
+    setRootId(parent?.id || "campuscode"); setSelectedNode(null); setNodeDetails(null);
+  };
+
+  const toggleMaintenance = async () => {
+    if (busy) return;
+    setBusy(true); setError(""); setSuccess("");
+    try {
+      const result = await apiFetch("/superadmin/maintenance", { method: "PATCH", body: JSON.stringify({ enabled: !maintenanceEnabled }) });
+      setMaintenance(result); setSuccess(!maintenanceEnabled ? "Maintenance mode enabled." : "Maintenance mode disabled.");
+    } catch (e) { setError(e.message || "Unable to update maintenance mode."); }
+    finally { setBusy(false); }
+  };
+
+  const clearTelemetry = async () => {
+    if (busy) return;
+    setBusy(true); setError(""); setSuccess("");
+    try { await apiFetch("/superadmin/telemetry", { method: "DELETE" }); setSuccess("System telemetry cleared."); }
+    catch (e) { setError(e.message || "Unable to clear telemetry."); }
+    finally { setBusy(false); }
+  };
+
+  const root = adminBlueprintNode(rootId);
+  const statsObject = stats || {};
+  const healthStatus = String(health?.status || health?.overall || "ONLINE").toUpperCase();
+  const mergedDetails = nodeDetails || selectedNode;
+
+  if (loading) return <Loading />;
+
+  return (
+    <div className="admin-system-blueprint-page">
+      <PageTitle
+        eyebrow="System / Architecture / Digital Twin"
+        title={<>CampusCode <span>system blueprint.</span></>}
+        description="The former Super Admin architecture view is integrated here as an Admin system map. Explore each layer, inspect nodes and open child blueprints without leaving the Admin panel."
+        action={<button className="admin-refresh" onClick={load}><RefreshCw size={15} /> Refresh</button>}
+      />
+
+      {error && <ErrorBox message={error} />}
+      {success && <div className="admin-success"><CheckCircle2 size={16} />{success}</div>}
+
+      <div className="admin-blueprint-stats">
+        <StatCard icon={Users} label="Users" number={statsObject?.total_users ?? statsObject?.users ?? "—"} detail="Platform users" />
+        <StatCard icon={Trophy} label="Hackathons" number={statsObject?.total_hackathons ?? statsObject?.hackathons ?? "—"} detail="Registered events" tone="purple" />
+        <StatCard icon={FileCheck2} label="Submissions" number={statsObject?.total_submissions ?? statsObject?.submissions ?? "—"} detail="Recorded submissions" tone="cyan" />
+        <StatCard icon={Server} label="Backend" number={healthStatus} detail={value(health?.database, "Database unknown")} tone="amber" />
+      </div>
+
+      <section className="admin-blueprint-card">
+        <div className="admin-blueprint-toolbar">
+          <div><span className="admin-kicker">INTERACTIVE DIGITAL TWIN</span><h3>{root.name}</h3><p>{root.description}</p></div>
+          <div className="admin-blueprint-toolbar-actions">
+            {rootId !== "campuscode" && <button type="button" className="admin-blueprint-back" onClick={goBack}><ArrowLeft size={14} /> BACK</button>}
+            <div className="admin-blueprint-breadcrumb"><button type="button" onClick={() => { setRootId("campuscode"); setSelectedNode(null); }}>CAMPUSCODE</button>{rootId !== "campuscode" && <><ChevronRight size={13} /><span>{root.name}</span></>}</div>
+          </div>
+        </div>
+
+        <AdminBlueprintScene rootId={rootId} selectedId={selectedNode?.id} onNodeClick={openNode} />
+      </section>
+
+      <div className="admin-blueprint-bottom-grid">
+        <section className="admin-panel-card">
+          <div className="admin-card-head"><div><span className="admin-kicker">SYSTEM CONTROL</span><h3>Maintenance mode</h3></div><Settings size={18} /></div>
+          <p className="approval-description">Use the existing backend maintenance control without leaving the Admin panel.</p>
+          <div className="admin-list-row"><div className="admin-row-main"><strong>{maintenanceEnabled ? "MAINTENANCE ENABLED" : "SYSTEM LIVE"}</strong><span>{maintenanceEnabled ? "Platform is in maintenance mode." : "Normal operation is active."}</span></div><button className="event-action neutral" disabled={busy} onClick={toggleMaintenance}>{maintenanceEnabled ? "Disable" : "Enable"}</button></div>
+          <button className="event-action danger" style={{ marginTop: 12, width: "100%" }} disabled={busy} onClick={clearTelemetry}><Trash2 size={14} /> Clear telemetry</button>
+        </section>
+
+        <section className="admin-panel-card">
+          <div className="admin-card-head"><div><span className="admin-kicker">NODE INSPECTOR</span><h3>{value(mergedDetails?.name, "Select a system node")}</h3></div><Database size={18} /></div>
+          {mergedDetails ? <div className="admin-blueprint-inspector"><div className="admin-blueprint-inspector-row"><span>TYPE</span><strong>{value(mergedDetails.type)}</strong></div><div className="admin-blueprint-inspector-row"><span>STATUS</span><strong>{value(mergedDetails.status)}</strong></div><div className="admin-blueprint-inspector-row"><span>DESCRIPTION</span><strong>{value(mergedDetails.description)}</strong></div><button className="event-action neutral" onClick={() => setSelectedNode(mergedDetails)}>OPEN FULL NODE INFORMATION</button></div> : <Empty title="No node selected" text="Click any blueprint node to inspect its complete architecture information." />}
+        </section>
+      </div>
+
+      {backendNodes.length > 0 && <div className="admin-blueprint-backend-note"><Server size={15} /><span>Backend blueprint data is connected to the existing system endpoint. The visual topology above preserves the full interactive module hierarchy.</span></div>}
+
+      <BlueprintNodeModal node={selectedNode} details={nodeDetails} onClose={() => { setSelectedNode(null); setNodeDetails(null); }} onEnter={enterBlueprint} />
+    </div>
+  );
+}
+
 /* =========================================================
    ACTIVITY
 ========================================================= */
@@ -2814,6 +3303,10 @@ export default function AdminPanel({
             <ActivityPage />
           )}
 
+          {section === "system" && (
+            <SystemBlueprintPage />
+          )}
+
           {section === "profile" && (
             <ProfilePage user={user} />
           )}
@@ -2830,6 +3323,7 @@ export default function AdminPanel({
             "evaluations",
             "results",
             "activity",
+            "system",
             "profile",
           ].includes(section) && (
             <Dashboard onNavigate={go} />

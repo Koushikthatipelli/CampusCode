@@ -6,6 +6,8 @@ import pool from "../config/db.js";
 CAMPUSCODE - API MONITORING MIDDLEWARE
 =========================================================
 
+Monitoring must NEVER break the actual API.
+
 Tracks:
 - Request ID
 - HTTP method
@@ -16,9 +18,6 @@ Tracks:
 - User role
 - Errors
 - User agent
-
-Important:
-Monitoring must NEVER break the actual API.
 =========================================================
 */
 
@@ -28,8 +27,8 @@ export function monitoringMiddleware(req, res, next) {
     return next();
   }
 
-  // Do not monitor monitoring endpoints themselves
-  // This prevents monitoring loops.
+  // Never monitor monitoring endpoints
+  // Prevents monitoring loops
   if (req.originalUrl.startsWith("/api/monitoring")) {
     return next();
   }
@@ -40,25 +39,25 @@ export function monitoringMiddleware(req, res, next) {
 
   req.monitoringRequestId = requestId;
 
-  // Send request ID back to frontend/Postman
+  // Send request ID to frontend/Postman
   res.setHeader("X-Request-ID", requestId);
 
-  res.on("finish", () => {
-    const endedAt = process.hrtime.bigint();
+  res.on("finish", async () => {
+    try {
+      const endedAt = process.hrtime.bigint();
 
-    const responseTimeMs =
-      Number(endedAt - startedAt) / 1_000_000;
+      const responseTimeMs =
+        Number(endedAt - startedAt) / 1_000_000;
 
-    const user = req.user || {};
+      const user = req.user || {};
 
-    const errorMessage =
-      req.monitoringError ||
-      (res.statusCode >= 400
-        ? res.statusMessage || null
-        : null);
+      const errorMessage =
+        req.monitoringError ||
+        (res.statusCode >= 400
+          ? res.statusMessage || `HTTP ${res.statusCode}`
+          : null);
 
-    pool
-      .query(
+      await pool.query(
         `
         INSERT INTO monitoring_logs (
           request_id,
@@ -96,17 +95,20 @@ export function monitoringMiddleware(req, res, next) {
           errorMessage,
           req.get("user-agent") || null,
         ]
-      )
-      .catch((error) => {
-        /*
-          Monitoring failure must NEVER crash CampusCode.
-        */
+      );
+    } catch (error) {
+      /*
+       * Monitoring must NEVER crash or affect CampusCode.
+       */
 
-        console.error(
-          "Monitoring log write failed:",
-          error.message
-        );
+      console.error("⚠️ Monitoring log write failed:", {
+        message: error?.message || "Unknown error",
+        code: error?.code || "NO_CODE",
+        name: error?.name || "UnknownError",
+        detail: error?.detail || null,
+        hint: error?.hint || null,
       });
+    }
   });
 
   next();

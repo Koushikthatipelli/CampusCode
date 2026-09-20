@@ -168,7 +168,7 @@ router.delete(
 router.post(
   "/",
   requireAuth,
-  requireRole("ADMIN", "ORGANIZER"),
+  requireRole("ADMIN", "SUB_ADMIN", "ORGANIZER"),
   createNotification
 );
 
@@ -181,7 +181,7 @@ router.post(
 router.get(
   "/history",
   requireAuth,
-  requireRole("ADMIN", "ORGANIZER"),
+  requireRole("ADMIN", "SUB_ADMIN", "ORGANIZER"),
   getNotificationHistory
 );
 
@@ -197,7 +197,7 @@ router.get(
 router.get(
   "/hackathons/:hackathonId/audience",
   requireAuth,
-  requireRole("ADMIN", "ORGANIZER"),
+  requireRole("ADMIN", "SUB_ADMIN", "ORGANIZER"),
   getHackathonNotificationAudience
 );
 

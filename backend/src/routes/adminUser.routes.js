@@ -2,6 +2,8 @@ import express from "express";
 
 import {
   getAllUsers,
+  getSubAdmins,
+  createSubAdmin,
   updateUserStatus,
   deleteUser,
 } from "../controllers/adminUser.controller.js";
@@ -30,6 +32,21 @@ ADMIN AUTHORIZATION
 */
 
 const adminOnly = requireRole("ADMIN");
+const adminStaff = requireRole("ADMIN", "SUB_ADMIN");
+
+router.get(
+  "/subadmins",
+  requireAuth,
+  adminOnly,
+  getSubAdmins
+);
+
+router.post(
+  "/subadmins",
+  requireAuth,
+  adminOnly,
+  createSubAdmin
+);
 
 /*
 =========================================================
@@ -41,7 +58,7 @@ GET /api/users/admin/all
 router.get(
   "/all",
   requireAuth,
-  adminOnly,
+  adminStaff,
   getAllUsers
 );
 
@@ -55,7 +72,7 @@ PATCH /api/users/admin/:id/status
 router.patch(
   "/:id/status",
   requireAuth,
-  adminOnly,
+  adminStaff,
   updateUserStatus
 );
 
@@ -69,7 +86,7 @@ DELETE /api/users/admin/:id
 router.delete(
   "/:id",
   requireAuth,
-  adminOnly,
+  adminStaff,
   deleteUser
 );
 

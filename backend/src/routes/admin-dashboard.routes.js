@@ -22,7 +22,7 @@ const router = express.Router();
 router.get(
   "/admin",
   requireAuth,
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "SUB_ADMIN"),
   getAdminDashboard
 );
 

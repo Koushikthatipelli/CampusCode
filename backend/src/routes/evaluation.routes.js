@@ -22,7 +22,7 @@ const router = express.Router();
 router.get(
   "/submission/:submissionId",
   requireAuth,
-  requireRole("ORGANIZER", "ADMIN"),
+  requireRole("ORGANIZER", "ADMIN", "SUB_ADMIN"),
   getSubmissionEvaluations
 );
 
@@ -33,7 +33,7 @@ router.get(
 router.get(
   "/:id",
   requireAuth,
-  requireRole("ORGANIZER", "ADMIN"),
+  requireRole("ORGANIZER", "ADMIN", "SUB_ADMIN"),
   getEvaluationById
 );
 
@@ -44,7 +44,7 @@ router.get(
 router.post(
   "/",
   requireAuth,
-  requireRole("ORGANIZER", "ADMIN"),
+  requireRole("ORGANIZER", "ADMIN", "SUB_ADMIN"),
   createEvaluation
 );
 
@@ -55,7 +55,7 @@ router.post(
 router.put(
   "/:id",
   requireAuth,
-  requireRole("ORGANIZER", "ADMIN"),
+  requireRole("ORGANIZER", "ADMIN", "SUB_ADMIN"),
   updateEvaluation
 );
 
@@ -66,7 +66,7 @@ router.put(
 router.delete(
   "/:id",
   requireAuth,
-  requireRole("ORGANIZER", "ADMIN"),
+  requireRole("ORGANIZER", "ADMIN", "SUB_ADMIN"),
   deleteEvaluation
 );
 
