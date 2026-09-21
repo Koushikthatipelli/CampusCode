@@ -15,6 +15,8 @@ import {
   Database,
   FileCheck2,
   Globe2,
+  GitBranch,
+  History,
   LayoutDashboard,
   LoaderCircle,
   LogOut,
@@ -34,6 +36,9 @@ import {
   X,
   Zap,
   Ban,
+  ZoomIn,
+  ZoomOut,
+  Maximize2,
   Bot,
 } from "lucide-react";
 
@@ -66,6 +71,7 @@ const navGroups = [
     items: [
       ["activity", "System Activity", Activity],
       ["system", "System Blueprint", Network],
+      ["version", "Version Control", GitBranch],
     ],
   },
   {
@@ -2609,57 +2615,78 @@ function AdminBlueprintNode({ node, x, y, selected, onClick }) {
   );
 }
 
-function AdminBlueprintScene({ rootId, selectedId, onNodeClick }) {
+function AdminBlueprintScene({ rootId, selectedNode, onNodeClick, query = "", layer = "ALL", focusMode = false, zoom = 1, onZoomIn, onZoomOut, onReset, onToggleFocus }) {
   const root = adminBlueprintNode(rootId);
   const children = (root.children || []).map(adminBlueprintNode);
-  const positions = [[18,50],[37,22],[37,78],[62,22],[62,78],[82,50]];
-  const visible = children.slice(0, 6);
+  const normalizedQuery = String(query || "").trim().toLowerCase();
+  const filtered = children.filter((node) => {
+    const matchesQuery = !normalizedQuery || `${node.name} ${node.type} ${node.id}`.toLowerCase().includes(normalizedQuery);
+    const matchesLayer = layer === "ALL" || String(node.type || "").toUpperCase().includes(layer);
+    return matchesQuery && matchesLayer;
+  });
+  const visible = filtered.slice(0, 8);
+  const positions = [[14,50],[31,22],[31,78],[50,13],[50,87],[69,22],[69,78],[86,50]];
+  const centerX = 50, centerY = 50;
 
   return (
-    <div className="admin-blueprint-scene">
+    <div className={`admin-blueprint-scene glass-architecture ${focusMode ? "focus-mode" : ""}`}>
       <div className="admin-blueprint-stars" />
       <div className="admin-blueprint-grid" />
       <div className="admin-blueprint-vignette" />
+      <div className="admin-glass-ambient ambient-a" />
+      <div className="admin-glass-ambient ambient-b" />
+      <div className="admin-blueprint-label"><span>INTERACTIVE SYSTEM ARCHITECTURE</span><strong>{root.name}</strong></div>
+      <div className="admin-blueprint-code">CC / ARCH-01<br /><b>LIVE TOPOLOGY</b></div>
 
-      <div className="admin-blueprint-label"><span>INTERACTIVE DIGITAL TWIN / LIVE TOPOLOGY</span><strong>{root.name}</strong></div>
-      <div className="admin-blueprint-code">CC / ARCH-01<br /><b>LIVE MAP</b></div>
+      <div className="admin-blueprint-canvas" style={{ transform: `scale(${zoom})` }}>
+        <svg className="admin-blueprint-connections" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+          {visible.map((child, index) => {
+            const [x, y] = positions[index];
+            return <g key={child.id} className={selectedId && selectedId !== child.id ? "connection-dim" : ""}>
+              <path className="admin-glass-connection" d={`M ${centerX} ${centerY} C ${centerX} ${centerY}, ${x} ${y}, ${x} ${y}`} />
+              <circle className="admin-glass-packet" cx={centerX} cy={centerY} r="0.7"><animate attributeName="cx" values={`${centerX};${x};${centerX}`} dur="4.5s" begin={`${index * .35}s`} repeatCount="indefinite" /><animate attributeName="cy" values={`${centerY};${y};${centerY}`} dur="4.5s" begin={`${index * .35}s`} repeatCount="indefinite" /></circle>
+            </g>;
+          })}
+        </svg>
 
-      <div className="admin-blueprint-floor"><i /><i /><i /></div>
-
-      <svg className="admin-blueprint-connections" viewBox="0 0 100 100" preserveAspectRatio="none">
-        {visible.map((child, index) => {
-          const [x, y] = positions[index];
-          return <g key={child.id}>
-            <line x1="50" y1="50" x2={x} y2={y} className="admin-blueprint-line" />
-            <circle r=".8" className="admin-blueprint-packet">
-              <animate attributeName="cx" values={`50;${x};50`} dur={`${2.7 + index * .3}s`} repeatCount="indefinite" />
-              <animate attributeName="cy" values={`50;${y};50`} dur={`${2.7 + index * .3}s`} repeatCount="indefinite" />
-            </circle>
-          </g>;
-        })}
-      </svg>
-
-      <div className="admin-blueprint-core">
-        <div className="admin-blueprint-ring ring-a" />
-        <div className="admin-blueprint-ring ring-b" />
-        <div className="admin-blueprint-ring ring-c" />
-        <div className="admin-blueprint-core-card">
-          <div className="admin-blueprint-core-glow" />
-          <Network size={25} />
+        <div className="admin-glass-core">
+          <div className="admin-glass-core-backdrop" />
+          <div className="admin-glass-core-logo"><span /><span /><span /></div>
           <strong>{root.name}</strong>
           <small>{root.type}</small>
-          <span><i /> {root.status}</span>
+          <span className="admin-glass-status"><i /> {root.status}</span>
         </div>
+
+        {visible.map((child, index) => {
+          const [x, y] = positions[index];
+          return <AdminBlueprintNode key={child.id} node={child} x={x} y={y} selected={selectedNode?.id === child.id} onClick={onNodeClick} />;
+        })}
       </div>
 
-      {visible.map((child, index) => {
-        const [x, y] = positions[index];
-        return <AdminBlueprintNode key={child.id} node={child} x={x} y={y} selected={selectedId === child.id} onClick={onNodeClick} />;
-      })}
+      {selectedNode && <aside className="admin-blueprint-side-inspector">
+        <button type="button" className="admin-blueprint-side-close" onClick={() => onNodeClick(null)}>×</button>
+        <span className="admin-kicker">MODULE INSPECTOR</span>
+        <h4>{selectedNode.name}</h4>
+        <small>{selectedNode.type}</small>
+        <div className="admin-blueprint-side-status"><i /> {selectedNode.status || "ONLINE"}</div>
+        <p>{selectedNode.description || "CampusCode system component."}</p>
+        <div className="admin-blueprint-side-meta"><span>CHILD MODULES <b>{(selectedNode.children || []).length}</b></span><span>NODE ID <b>{selectedNode.id}</b></span></div>
+        {(selectedNode.children || []).length > 0 && <button type="button" className="admin-blueprint-side-open" onClick={() => onNodeClick(selectedNode, true)}>OPEN ARCHITECTURE →</button>}
+      </aside>}
 
-      <div className="admin-blueprint-legend"><span><i className="live" /> LIVE</span><span><i className="flow" /> REQUEST FLOW</span><span><i className="node" /> CLICK NODE</span></div>
-      <div className="admin-blueprint-depth">NODE DEPTH: {children.length}</div>
-      <div className="admin-blueprint-help">Click any module to open its architecture. Click a module with children to enter its blueprint.</div>
+      {!visible.length && <div className="admin-blueprint-no-match">NO MATCHING MODULES</div>}
+
+      <div className="admin-blueprint-glass-controls">
+        <button type="button" onClick={onZoomOut} title="Zoom out"><ZoomOut size={14} /></button>
+        <span>{Math.round(zoom * 100)}%</span>
+        <button type="button" onClick={onZoomIn} title="Zoom in"><ZoomIn size={14} /></button>
+        <button type="button" onClick={onReset} title="Reset view"><RefreshCw size={13} /></button>
+        <button type="button" onClick={onToggleFocus} title="Focus mode"><Maximize2 size={13} /></button>
+      </div>
+
+      <div className="admin-blueprint-legend"><span><i className="live" /> LIVE</span><span><i className="flow" /> SYSTEM FLOW</span><span><i className="node" /> CLICK MODULE</span></div>
+      <div className="admin-blueprint-mini-map"><span>MAP</span><div className="mini-map-core" />{visible.slice(0, 6).map((node, index) => <i key={node.id} style={{ left: `${20 + (index % 3) * 28}%`, top: `${25 + Math.floor(index / 3) * 42}%` }} />)}</div>
+      <div className="admin-blueprint-help">Hover a module to inspect it · click to open architecture</div>
     </div>
   );
 }
@@ -2711,6 +2738,10 @@ function SystemBlueprintPage() {
   const [rootId, setRootId] = useState("campuscode");
   const [selectedNode, setSelectedNode] = useState(null);
   const [nodeDetails, setNodeDetails] = useState(null);
+  const [query, setQuery] = useState("");
+  const [layer, setLayer] = useState("ALL");
+  const [focusMode, setFocusMode] = useState(false);
+  const [zoom, setZoom] = useState(1);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -2734,40 +2765,31 @@ function SystemBlueprintPage() {
   useEffect(() => { load(); }, []);
 
   const maintenanceEnabled = Boolean(maintenance?.enabled ?? maintenance?.maintenance_mode);
-  const backendNodes = Array.isArray(blueprint?.nodes) ? blueprint.nodes : [];
-
-  const openNode = async (node) => {
+  const openNode = async (node, enter = false) => {
+    if (!node) { setSelectedNode(null); setNodeDetails(null); return; }
+    if (enter && node.children?.length) { enterBlueprint(node); return; }
     setSelectedNode(node); setNodeDetails(null); setError("");
     try {
       const result = await apiFetch(`/superadmin/blueprint/${encodeURIComponent(node.id)}`);
       setNodeDetails(result?.node || result?.data || result);
     } catch { setNodeDetails(node); }
   };
-
   const enterBlueprint = (node) => {
-    if (node.children?.length) {
-      setRootId(node.id); setSelectedNode(null); setNodeDetails(null);
-    } else {
-      openNode(node);
-    }
+    if (node.children?.length) { setRootId(node.id); setSelectedNode(null); setNodeDetails(null); setQuery(""); setZoom(1); }
+    else openNode(node);
   };
-
   const goBack = () => {
     if (rootId === "campuscode") return;
-    const parent = Object.values(ADMIN_BLUEPRINT).find(n => (n.children || []).includes(rootId));
-    setRootId(parent?.id || "campuscode"); setSelectedNode(null); setNodeDetails(null);
+    const parent = Object.values(ADMIN_BLUEPRINT).find((n) => (n.children || []).includes(rootId));
+    setRootId(parent?.id || "campuscode"); setSelectedNode(null); setNodeDetails(null); setQuery(""); setZoom(1);
   };
-
   const toggleMaintenance = async () => {
     if (busy) return;
     setBusy(true); setError(""); setSuccess("");
-    try {
-      const result = await apiFetch("/superadmin/maintenance", { method: "PATCH", body: JSON.stringify({ enabled: !maintenanceEnabled }) });
-      setMaintenance(result); setSuccess(!maintenanceEnabled ? "Maintenance mode enabled." : "Maintenance mode disabled.");
-    } catch (e) { setError(e.message || "Unable to update maintenance mode."); }
+    try { const result = await apiFetch("/superadmin/maintenance", { method: "PATCH", body: JSON.stringify({ enabled: !maintenanceEnabled }) }); setMaintenance(result); setSuccess(!maintenanceEnabled ? "Maintenance mode enabled." : "Maintenance mode disabled."); }
+    catch (e) { setError(e.message || "Unable to update maintenance mode."); }
     finally { setBusy(false); }
   };
-
   const clearTelemetry = async () => {
     if (busy) return;
     setBusy(true); setError(""); setSuccess("");
@@ -2780,15 +2802,16 @@ function SystemBlueprintPage() {
   const statsObject = stats || {};
   const healthStatus = String(health?.status || health?.overall || "ONLINE").toUpperCase();
   const mergedDetails = nodeDetails || selectedNode;
+  const layerOptions = ["ALL", "APPLICATION", "BACKEND", "DATABASE", "AI", "MONITORING"];
 
   if (loading) return <Loading />;
 
   return (
-    <div className="admin-system-blueprint-page">
+    <div className={`admin-system-blueprint-page ${focusMode ? "blueprint-focus-page" : ""}`}>
       <PageTitle
-        eyebrow="System / Architecture / Digital Twin"
-        title={<>CampusCode <span>system blueprint.</span></>}
-        description="The former Super Admin architecture view is integrated here as an Admin system map. Explore each layer, inspect nodes and open child blueprints without leaving the Admin panel."
+        eyebrow="SYSTEM / ARCHITECTURE"
+        title={<>CampusCode <span>system architecture.</span></>}
+        description="Explore the platform as a realistic glass architecture. Search modules, focus system layers and inspect connected services without leaving Admin."
         action={<button className="admin-refresh" onClick={load}><RefreshCw size={15} /> Refresh</button>}
       />
 
@@ -2799,427 +2822,127 @@ function SystemBlueprintPage() {
         <StatCard icon={Users} label="Users" number={statsObject?.total_users ?? statsObject?.users ?? "—"} detail="Platform users" />
         <StatCard icon={Trophy} label="Hackathons" number={statsObject?.total_hackathons ?? statsObject?.hackathons ?? "—"} detail="Registered events" tone="purple" />
         <StatCard icon={FileCheck2} label="Submissions" number={statsObject?.total_submissions ?? statsObject?.submissions ?? "—"} detail="Recorded submissions" tone="cyan" />
-        <StatCard icon={Server} label="Backend" number={healthStatus} detail={value(health?.database, "Database unknown")} tone="amber" />
+        <StatCard icon={Server} label="System" number={healthStatus} detail={value(health?.database, "Database unknown")} tone="amber" />
       </div>
 
       <section className="admin-blueprint-card">
         <div className="admin-blueprint-toolbar">
-          <div><span className="admin-kicker">INTERACTIVE DIGITAL TWIN</span><h3>{root.name}</h3><p>{root.description}</p></div>
+          <div><span className="admin-kicker">3D GLASS ARCHITECTURE</span><h3>{root.name}</h3><p>{root.description}</p></div>
           <div className="admin-blueprint-toolbar-actions">
             {rootId !== "campuscode" && <button type="button" className="admin-blueprint-back" onClick={goBack}><ArrowLeft size={14} /> BACK</button>}
-            <div className="admin-blueprint-breadcrumb"><button type="button" onClick={() => { setRootId("campuscode"); setSelectedNode(null); }}>CAMPUSCODE</button>{rootId !== "campuscode" && <><ChevronRight size={13} /><span>{root.name}</span></>}</div>
+            <div className="admin-blueprint-breadcrumb"><button type="button" onClick={() => { setRootId("campuscode"); setSelectedNode(null); setNodeDetails(null); setQuery(""); }}>CAMPUSCODE</button>{rootId !== "campuscode" && <><ChevronRight size={13} /><span>{root.name}</span></>}</div>
           </div>
         </div>
 
-        <AdminBlueprintScene rootId={rootId} selectedId={selectedNode?.id} onNodeClick={openNode} />
+        <div className="admin-blueprint-ui-toolbar">
+          <div className="admin-blueprint-search"><Search size={15} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search modules..." /></div>
+          <div className="admin-blueprint-layers">{layerOptions.map((item) => <button key={item} type="button" className={layer === item ? "active" : ""} onClick={() => setLayer(item)}>{item}</button>)}</div>
+        </div>
+
+        <AdminBlueprintScene
+          rootId={rootId}
+          selectedNode={selectedNode}
+          onNodeClick={openNode}
+          query={query}
+          layer={layer}
+          focusMode={focusMode}
+          zoom={zoom}
+          onZoomIn={() => setZoom((z) => Math.min(1.25, Number((z + .1).toFixed(2))))}
+          onZoomOut={() => setZoom((z) => Math.max(.8, Number((z - .1).toFixed(2))))}
+          onReset={() => setZoom(1)}
+          onToggleFocus={() => setFocusMode((x) => !x)}
+        />
+
+        <div className="admin-blueprint-path"><span>PATH</span><b>CAMPUSCODE</b><ChevronRight size={12} /> <b>{root.name}</b>{selectedNode && <><ChevronRight size={12} /><b>{selectedNode.name}</b></>}</div>
       </section>
 
       <div className="admin-blueprint-bottom-grid">
         <section className="admin-panel-card">
-          <div className="admin-card-head"><div><span className="admin-kicker">SYSTEM CONTROL</span><h3>Maintenance mode</h3></div><Settings size={18} /></div>
-          <p className="approval-description">Use the existing backend maintenance control without leaving the Admin panel.</p>
-          <div className="admin-list-row"><div className="admin-row-main"><strong>{maintenanceEnabled ? "MAINTENANCE ENABLED" : "SYSTEM LIVE"}</strong><span>{maintenanceEnabled ? "Platform is in maintenance mode." : "Normal operation is active."}</span></div><button className="event-action neutral" disabled={busy} onClick={toggleMaintenance}>{maintenanceEnabled ? "Disable" : "Enable"}</button></div>
-          <button className="event-action danger" style={{ marginTop: 12, width: "100%" }} disabled={busy} onClick={clearTelemetry}><Trash2 size={14} /> Clear telemetry</button>
+          <div className="admin-card-head"><div><span className="admin-kicker">MODULE INSPECTOR</span><h3>{mergedDetails?.name || "Select a module"}</h3></div><Network size={18} /></div>
+          {mergedDetails ? <div className="admin-blueprint-inspector">
+            <div className="admin-blueprint-inspector-row"><span>TYPE</span><strong>{mergedDetails.type}</strong></div>
+            <div className="admin-blueprint-inspector-row"><span>STATUS</span><strong>{mergedDetails.status || "ONLINE"}</strong></div>
+            <div className="admin-blueprint-inspector-row"><span>DESCRIPTION</span><strong>{mergedDetails.description || "CampusCode system component."}</strong></div>
+            <div className="admin-blueprint-inspector-row"><span>CHILD MODULES</span><strong>{(mergedDetails.children || []).length}</strong></div>
+            {(mergedDetails.children || []).length > 0 && <button className="event-action neutral" onClick={() => enterBlueprint(mergedDetails)}>OPEN ARCHITECTURE →</button>}
+          </div> : <Empty title="NO MODULE SELECTED" text="Click a glass module above to inspect its connections and details." />}
         </section>
 
         <section className="admin-panel-card">
-          <div className="admin-card-head"><div><span className="admin-kicker">NODE INSPECTOR</span><h3>{value(mergedDetails?.name, "Select a system node")}</h3></div><Database size={18} /></div>
-          {mergedDetails ? <div className="admin-blueprint-inspector"><div className="admin-blueprint-inspector-row"><span>TYPE</span><strong>{value(mergedDetails.type)}</strong></div><div className="admin-blueprint-inspector-row"><span>STATUS</span><strong>{value(mergedDetails.status)}</strong></div><div className="admin-blueprint-inspector-row"><span>DESCRIPTION</span><strong>{value(mergedDetails.description)}</strong></div><button className="event-action neutral" onClick={() => setSelectedNode(mergedDetails)}>OPEN FULL NODE INFORMATION</button></div> : <Empty title="No node selected" text="Click any blueprint node to inspect its complete architecture information." />}
+          <div className="admin-card-head"><div><span className="admin-kicker">SYSTEM CONTROL</span><h3>Platform controls</h3></div><Settings size={18} /></div>
+          <p className="approval-description">Existing system controls remain available without changing the backend architecture.</p>
+          <div className="admin-list-row"><div className="admin-row-main"><strong>{maintenanceEnabled ? "MAINTENANCE ENABLED" : "SYSTEM LIVE"}</strong><span>{maintenanceEnabled ? "Platform is in maintenance mode." : "Normal operation is active."}</span></div><button className="event-action neutral" disabled={busy} onClick={toggleMaintenance}>{maintenanceEnabled ? "Disable" : "Enable"}</button></div>
+          <button className="event-action danger" style={{ marginTop: 12, width: "100%" }} disabled={busy} onClick={clearTelemetry}><Trash2 size={14} /> Clear telemetry</button>
         </section>
       </div>
 
-      {backendNodes.length > 0 && <div className="admin-blueprint-backend-note"><Server size={15} /><span>Backend blueprint data is connected to the existing system endpoint. The visual topology above preserves the full interactive module hierarchy.</span></div>}
-
-      <BlueprintNodeModal node={selectedNode} details={nodeDetails} onClose={() => { setSelectedNode(null); setNodeDetails(null); }} onEnter={enterBlueprint} />
+      {selectedNode && <BlueprintNodeModal node={selectedNode} details={nodeDetails} onClose={() => { setSelectedNode(null); setNodeDetails(null); }} onEnter={enterBlueprint} />}
     </div>
   );
 }
 
-/* =========================================================
-   ACTIVITY
-========================================================= */
-
-function ActivityPage() {
-  const [tab, setTab] = useState("requests");
-  const [data, setData] = useState([]);
-  const [health, setHealth] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
-  const endpoints = {
-    requests: "/monitoring/requests",
-    errors: "/monitoring/errors",
-    response: "/monitoring/response-time",
-  };
-
-  const load = async () => {
-    setLoading(true);
-    setError("");
-
-    try {
-      const [h, s, d] = await Promise.all([
-        apiFetch("/monitoring/health"),
-        apiFetch("/monitoring/stats"),
-        apiFetch(endpoints[tab]),
-      ]);
-
-      setHealth(h);
-      setStats(s);
-
-      setData(
-        unwrap(d, [
-          "requests",
-          "errors",
-          "data",
-          "logs",
-          "items",
-        ])
-      );
-    } catch (e) {
-      setError(e.message);
-      setData([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, [tab]);
-
+function VersionControlPage() {
+  const versions = [
+    { id: "v1", title: "v1", label: "FOUNDATION", status: "RELEASED", features: ["Platform foundation", "Authentication", "Core hackathon flow"] },
+    { id: "v2", title: "v2", label: "CORE BUILD", status: "RELEASED", features: ["Student workspace", "Organizer workspace", "Team management"] },
+    { id: "v3", title: "v3", label: "FEATURE EXPANSION", status: "RELEASED", features: ["Round lifecycle", "Submissions", "Results and leaderboard"] },
+    { id: "v4", title: "v4", label: "AI INTEGRATION", status: "RELEASED", features: ["IdeaCheck AI", "RuleBot AI", "AI-assisted workflows"] },
+    { id: "v5", title: "v5", label: "STABILITY", status: "RELEASED", features: ["UI refinement", "Performance improvements", "Workflow hardening"] },
+    { id: "v6", title: "v6", label: "CURRENT PLATFORM", status: "CURRENT", features: ["Integrated hackathon platform", "Advanced Admin controls", "Student experience improvements"] },
+    { id: "v7", title: "v7", label: "UPCOMING", status: "UPCOMING", features: ["Next-generation improvements", "Expanded platform intelligence", "Further UX refinement"] },
+    { id: "v8", title: "v8", label: "FINAL RELEASE", status: "FINAL", features: ["Final platform polish", "Production readiness", "Complete CampusCode ecosystem"] },
+  ];
+  const [selected, setSelected] = useState("v6");
+  const current = versions.find((item) => item.id === selected) || versions[5];
   return (
-    <div>
-      <PageTitle
-        eyebrow="System / Observatory"
-        title={
-          <>
-            System <span>activity.</span>
-          </>
-        }
-        description="Admin-only operational telemetry from the CampusCode monitoring APIs."
-        action={
-          <button className="admin-refresh" onClick={load}>
-            <RefreshCw size={15} />
-            Refresh
-          </button>
-        }
-      />
-
-      {error && <ErrorBox message={error} />}
-
-      <div className="monitor-health-grid">
-        <div className="monitor-health-card">
-          <Server size={18} />
-          <span>BACKEND</span>
-          <strong>{value(health?.status)}</strong>
-          <i
-            className={
-              health?.status === "healthy"
-                ? "ok"
-                : "warn"
-            }
-          />
+    <section className="admin-version-page">
+      <PageTitle eyebrow="SYSTEM / VERSION CONTROL" title={<>Product <span>versions.</span></>} description="Track the evolution of CampusCode from v1 through the current v6, upcoming v7 and final v8." />
+      <div className="admin-version-top-grid">
+        <div className="admin-version-current">
+          <span className="admin-kicker">CURRENT VERSION</span>
+          <div className="admin-version-number">v6</div>
+          <div className="admin-version-current-title">CURRENT PLATFORM</div>
+          <p>v6 is the current CampusCode platform version.</p>
+          <div className="admin-version-status"><i /> LIVE / CURRENT</div>
         </div>
-
-        <div className="monitor-health-card">
-          <Database size={18} />
-          <span>DATABASE</span>
-          <strong>{value(health?.database)}</strong>
-          <i
-            className={
-              health?.database === "connected"
-                ? "ok"
-                : "warn"
-            }
-          />
-        </div>
-
-        <div className="monitor-health-card">
-          <Activity size={18} />
-          <span>MONITORING</span>
-          <strong>ADMIN ONLY</strong>
-          <i className="ok" />
-        </div>
-
-        <div className="monitor-health-card">
-          <Clock3 size={18} />
-          <span>RESPONSE DATA</span>
-          <strong>
-            {value(
-              stats?.average_response_time ??
-                stats?.avg_response_time ??
-                stats?.averageResponseTime
-            )}
-          </strong>
-          <i className="ok" />
+        <div className="admin-version-summary-grid">
+          <div><strong>6</strong><span>Released</span></div>
+          <div><strong>2</strong><span>Upcoming</span></div>
+          <div><strong>v6</strong><span>Current</span></div>
+          <div><strong>v8</strong><span>Final</span></div>
         </div>
       </div>
 
-      <div className="monitor-tabs">
-        {[
-          ["requests", "Requests"],
-          ["errors", "Errors"],
-          ["response", "Response time"],
-        ].map(([key, label]) => (
-          <button
-            key={key}
-            className={tab === key ? "active" : ""}
-            onClick={() => setTab(key)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <Loading />
-      ) : data.length ? (
-        <div className="monitor-log-list">
-          {data.slice(0, 50).map((row, index) => (
-            <div
-              className="monitor-log-row"
-              key={
-                row.id ||
-                row.request_id ||
-                index
-              }
-            >
-              <span className="log-method">
-                {value(row.method)}
-              </span>
-
-              <span className="log-path">
-                {value(
-                  row.endpoint ||
-                    row.path ||
-                    row.route
-                )}
-              </span>
-
-              <span>
-                {value(
-                  row.status_code ??
-                    row.status
-                )}
-              </span>
-
-              <span>
-                {value(
-                  row.response_time ??
-                    row.latency
-                )}
-              </span>
-
-              <span>
-                {formatDate(
-                  row.created_at ||
-                    row.timestamp
-                )}
-              </span>
-            </div>
+      <div className="admin-version-timeline-card">
+        <div className="admin-card-head"><div><span className="admin-kicker">RELEASE TIMELINE</span><h3>CampusCode evolution</h3></div><History size={18} /></div>
+        <div className="admin-version-timeline">
+          <div className="admin-version-line" />
+          {versions.map((item) => (
+            <button key={item.id} type="button" className={`admin-version-node ${item.status.toLowerCase()} ${selected === item.id ? "active" : ""}`} onClick={() => setSelected(item.id)}>
+              <span className="admin-version-dot" />
+              <strong>{item.title}</strong>
+              <small>{item.status}</small>
+            </button>
           ))}
         </div>
-      ) : (
-        <Empty
-          title={`No ${tab} data`}
-          text="The monitoring endpoint returned no records."
-        />
-      )}
-    </div>
-  );
-}
-
-
-/* =========================================================
-   PROFILE
-========================================================= */
-
-function ProfilePage({ user }) {
-  const [profile, setProfile] = useState(user || {});
-  const [name, setName] = useState(user?.name || "");
-  const [bio, setBio] = useState(user?.bio || "");
-  const [skills, setSkills] = useState(
-    Array.isArray(user?.skills)
-      ? user.skills.join(", ")
-      : user?.skills || ""
-  );
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  useEffect(() => {
-    apiFetch("/users/me")
-      .then((data) => {
-        const profileData =
-          data.profile ||
-          data.user ||
-          data.data ||
-          data;
-
-        setProfile(profileData);
-        setName(profileData.name || "");
-        setBio(profileData.bio || "");
-        setSkills(
-          Array.isArray(profileData.skills)
-            ? profileData.skills.join(", ")
-            : profileData.skills || ""
-        );
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const save = async () => {
-    setSaving(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      const data = await apiFetch("/users/me", {
-        method: "PUT",
-        body: JSON.stringify({
-          name,
-          bio,
-          skills: skills
-            .split(",")
-            .map((item) => item.trim())
-            .filter(Boolean),
-        }),
-      });
-
-      const profileData =
-        data.profile ||
-        data.user ||
-        data.data ||
-        data;
-
-      setProfile(profileData);
-      setSuccess("Profile saved to the backend.");
-
-      localStorage.setItem(
-        "user",
-        JSON.stringify(profileData)
-      );
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (loading) return <Loading />;
-
-  return (
-    <div>
-      <PageTitle
-        eyebrow="Account / Administrator"
-        title={
-          <>
-            Admin <span>profile.</span>
-          </>
-        }
-        description="Your administrator profile loaded from the authenticated user endpoint."
-      />
-
-      {error && <ErrorBox message={error} />}
-
-      {success && (
-        <div className="admin-success">
-          <CheckCircle2 size={16} />
-          {success}
-        </div>
-      )}
-
-      <div className="profile-layout">
-        <div className="profile-identity">
-          <div className="profile-big-avatar">
-            {(name || "A").charAt(0).toUpperCase()}
-          </div>
-
-          <span className="role-badge admin">
-            ADMIN
-          </span>
-
-          <h3>{value(name, "Administrator")}</h3>
-          <p>{value(profile.email)}</p>
-
-          <div className="profile-id">
-            CAMPUS ID
-            <br />
-            <strong>
-              {value(profile.campus_code_id)}
-            </strong>
-          </div>
-        </div>
-
-        <div className="profile-form">
-          <div className="field-grid">
-            <label>
-              FULL NAME
-              <input
-                value={name}
-                onChange={(e) =>
-                  setName(e.target.value)
-                }
-              />
-            </label>
-
-            <label>
-              EMAIL
-              <input
-                value={profile.email || ""}
-                disabled
-              />
-            </label>
-          </div>
-
-          <label>
-            BIO
-            <textarea
-              value={bio}
-              onChange={(e) =>
-                setBio(e.target.value)
-              }
-              rows={5}
-            />
-          </label>
-
-          <label>
-            SKILLS
-            <input
-              value={skills}
-              onChange={(e) =>
-                setSkills(e.target.value)
-              }
-              placeholder="React, Node.js, PostgreSQL"
-            />
-          </label>
-
-          <button
-            className="profile-save"
-            disabled={saving}
-            onClick={save}
-          >
-            {saving && (
-              <LoaderCircle
-                className="spin"
-                size={16}
-              />
-            )}
-
-            {saving
-              ? "Saving..."
-              : "Save changes"}
-          </button>
-        </div>
       </div>
-    </div>
+
+      <div className="admin-version-details-grid">
+        <section className="admin-panel-card admin-version-detail-card">
+          <span className={`admin-version-badge ${current.status.toLowerCase()}`}>{current.status}</span>
+          <div className="admin-version-detail-head"><div><strong>{current.title}</strong><span>{current.label}</span></div><GitBranch size={25} /></div>
+          <p>This version represents a defined stage in the CampusCode product lifecycle. The feature list is presented as the product roadmap record and does not change the live backend.</p>
+          <div className="admin-version-feature-list">{current.features.map((feature) => <div key={feature}><CheckCircle2 size={15} /><span>{feature}</span></div>)}</div>
+        </section>
+        <section className="admin-panel-card">
+          <div className="admin-card-head"><div><span className="admin-kicker">ROADMAP</span><h3>What comes next</h3></div><Zap size={18} /></div>
+          <div className="admin-version-roadmap-row"><span>v7</span><div><strong>UPCOMING</strong><p>Next platform iteration and further product improvements.</p></div></div>
+          <div className="admin-version-roadmap-row"><span>v8</span><div><strong>FINAL</strong><p>Final planned CampusCode release and production polish.</p></div></div>
+        </section>
+      </div>
+    </section>
   );
 }
-
 
 /* =========================================================
    ADMIN PANEL
@@ -3307,6 +3030,10 @@ export default function AdminPanel({
             <SystemBlueprintPage />
           )}
 
+          {section === "version" && (
+            <VersionControlPage />
+          )}
+
           {section === "profile" && (
             <ProfilePage user={user} />
           )}
@@ -3324,6 +3051,7 @@ export default function AdminPanel({
             "results",
             "activity",
             "system",
+            "version",
             "profile",
           ].includes(section) && (
             <Dashboard onNavigate={go} />
