@@ -2283,17 +2283,6 @@ function HelpSupportPage() {
   return <section><PageHeading eyebrow="HELP / SUPPORT" title="HELP & SUPPORT." text="Start with the guide and FAQs. If you still need help, use the official communication channel or contact your organizer." /><div className="student-support-grid"><div className="student-support-card"><span>01</span><h3>Student Guide</h3><p>Learn how the CampusCode workflow works from joining a hackathon through results.</p><button className="student-outline-btn" onClick={() => window.dispatchEvent(new CustomEvent("campuscode:navigate", { detail: "Student Guide" }))}>OPEN GUIDE →</button></div><div className="student-support-card"><span>02</span><h3>FAQs</h3><p>Find answers about teams, rounds, submissions, AI assistance and communication.</p><button className="student-outline-btn" onClick={() => window.dispatchEvent(new CustomEvent("campuscode:navigate", { detail: "Student Guide" }))}>VIEW FAQ →</button></div><div className="student-support-card"><span>03</span><h3>Official WhatsApp</h3><p>Follow the official CampusCode channel for announcements and important updates.</p><a className="student-outline-btn" href="https://whatsapp.com/channel/0029Vb8gR7TEVccLc1pW4O2d" target="_blank" rel="noreferrer">OPEN CHANNEL →</a></div></div></section>;
 }
 
-function StudentMilestoneOverlay({ milestone, onClose }) {
-  if (!milestone) return null;
-  const config = milestone.type === "registered"
-    ? { eyebrow: "REGISTRATION CONFIRMED", title: "YOU'RE IN.", copy: `Your registration for ${milestone.hackathon || "this hackathon"} is confirmed. Time to build.` }
-    : milestone.type === "advanced"
-      ? { eyebrow: "NEXT ROUND UNLOCKED", title: "YOU MADE IT THROUGH.", copy: `Your Round ${milestone.fromRound || 1} submission was selected. Round ${milestone.toRound || 2} is now unlocked.` }
-      : { eyebrow: "WINNER", title: "YOU DID IT.", copy: `Congratulations — you won ${milestone.hackathon || "the hackathon"}.` };
-  return <div className="student-milestone-backdrop"><div className="student-milestone-card"><div className="student-milestone-icon">✦</div><span>{config.eyebrow}</span><h2>{config.title}</h2><p>{config.copy}</p><button onClick={onClose}>CONTINUE BUILDING</button></div></div>;
-}
-
-
 function StudentPanel() {
   const navigate = useNavigate();
   const [activeNav, setActiveNav] = useState("Overview");
