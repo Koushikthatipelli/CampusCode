@@ -2760,3 +2760,231 @@
   letter-spacing:.12em;
 }
 .admin-control-note{color:#8ea2bf;border-color:var(--admin-border);background:rgba(255,255,255,.025);}
+
+/* =========================================================
+   VERSION CONTROL — FULL VERSION DETAIL MODAL
+   ========================================================= */
+.admin-version-modal-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:9990;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:28px;
+  background:rgba(2,7,13,.78);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+}
+
+.admin-version-modal{
+  position:relative;
+  width:min(860px,100%);
+  max-height:min(820px,calc(100vh - 56px));
+  overflow:auto;
+  padding:32px;
+  border:1px solid rgba(69,225,255,.18);
+  border-radius:22px;
+  background:
+    linear-gradient(145deg,rgba(18,30,43,.98),rgba(7,15,24,.99));
+  box-shadow:
+    0 40px 120px rgba(0,0,0,.6),
+    0 0 55px rgba(69,225,255,.06),
+    inset 0 1px rgba(255,255,255,.08);
+  color:#edf5ff;
+}
+
+.admin-version-modal::before{
+  content:"";
+  position:absolute;
+  left:0;
+  right:0;
+  top:0;
+  height:3px;
+  border-radius:22px 22px 0 0;
+  background:linear-gradient(90deg,#9b7cff,#45e1ff,#a7f37a);
+}
+
+.admin-version-modal-close{
+  position:absolute;
+  top:18px;
+  right:18px;
+  width:36px;
+  height:36px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(255,255,255,.1);
+  border-radius:9px;
+  background:rgba(255,255,255,.04);
+  color:#9db0c5;
+  cursor:pointer;
+}
+
+.admin-version-modal-close:hover{
+  border-color:rgba(69,225,255,.35);
+  color:#fff;
+  background:rgba(69,225,255,.08);
+}
+
+.admin-version-modal-version{
+  margin-top:22px;
+  color:#45e1ff;
+  font:900 11px/1 "Space Grotesk",sans-serif;
+  letter-spacing:.18em;
+}
+
+.admin-version-modal h2{
+  margin:9px 0 8px;
+  padding-right:45px;
+  color:#f5f8fc;
+  font:900 clamp(28px,4vw,42px)/1.05 "Space Grotesk",sans-serif;
+  letter-spacing:-.04em;
+}
+
+.admin-version-modal > p{
+  margin:0;
+  color:#7f96ad;
+  font-size:12px;
+  line-height:1.7;
+}
+
+.admin-version-modal-features{
+  display:grid;
+  gap:9px;
+  margin-top:24px;
+}
+
+.admin-version-modal-features > div{
+  display:grid;
+  grid-template-columns:36px 1fr 20px;
+  align-items:start;
+  gap:12px;
+  padding:14px 15px;
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:11px;
+  background:rgba(255,255,255,.025);
+}
+
+.admin-version-modal-features > div > span{
+  display:grid;
+  place-items:center;
+  width:30px;
+  height:30px;
+  border:1px solid rgba(155,124,255,.2);
+  border-radius:8px;
+  color:#c6baff;
+  font:900 8px monospace;
+}
+
+.admin-version-modal-features strong{
+  display:block;
+  color:#eaf2fb;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.4;
+}
+
+.admin-version-modal-features p{
+  margin:4px 0 0;
+  color:#70879d;
+  font-size:10px;
+  line-height:1.55;
+}
+
+.admin-version-modal-features svg{
+  margin-top:7px;
+  color:#a7f37a;
+}
+
+.admin-version-modal-actions{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:22px;
+}
+
+/* =========================================================
+   BLUEPRINT — TRUE FULL-SCREEN FOCUS VIEW
+   Only the blueprint and BACK button remain visible.
+   ========================================================= */
+.admin-blueprint-fullscreen{
+  position:fixed;
+  inset:0;
+  z-index:99999;
+  display:block;
+  overflow:hidden;
+  background:#03080e;
+}
+
+.admin-blueprint-fullscreen-back{
+  position:absolute;
+  z-index:100001;
+  top:18px;
+  left:18px;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  min-height:38px;
+  padding:0 14px;
+  border:1px solid rgba(255,255,255,.13);
+  border-radius:9px;
+  background:rgba(5,13,23,.88);
+  color:#e7f1fb;
+  font:900 9px monospace;
+  letter-spacing:.1em;
+  cursor:pointer;
+  box-shadow:0 12px 35px rgba(0,0,0,.4);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+}
+
+.admin-blueprint-fullscreen-back:hover{
+  border-color:rgba(69,225,255,.45);
+  color:#45e1ff;
+}
+
+.admin-blueprint-fullscreen > .admin-blueprint-scene{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  min-height:100vh !important;
+  border:0;
+  border-radius:0;
+  margin:0;
+}
+
+.admin-blueprint-fullscreen .admin-blueprint-glass-controls,
+.admin-blueprint-fullscreen .admin-blueprint-legend,
+.admin-blueprint-fullscreen .admin-blueprint-mini-map,
+.admin-blueprint-fullscreen .admin-blueprint-help,
+.admin-blueprint-fullscreen .admin-blueprint-label,
+.admin-blueprint-fullscreen .admin-blueprint-code,
+.admin-blueprint-fullscreen .admin-blueprint-side-inspector{
+  display:none !important;
+}
+
+.admin-blueprint-fullscreen .admin-blueprint-canvas{
+  inset:20px !important;
+}
+
+.admin-blueprint-fullscreen .admin-glass-core{
+  transform:translate(-50%,-50%) scale(1.25);
+}
+
+.admin-blueprint-fullscreen .admin-blueprint-node{
+  transform:translate(-50%,-50%) scale(1.12);
+}
+
+.admin-blueprint-fullscreen .admin-blueprint-node:hover .admin-blueprint-node-face{
+  transform:translateY(-4px);
+}
+
+@media(max-width:700px){
+  .admin-version-modal-backdrop{padding:12px}
+  .admin-version-modal{max-height:calc(100vh - 24px);padding:24px 18px}
+  .admin-version-modal-features > div{grid-template-columns:30px 1fr 18px;gap:9px;padding:12px}
+  .admin-blueprint-fullscreen-back{top:12px;left:12px}
+  .admin-blueprint-fullscreen .admin-blueprint-canvas{inset:5px !important}
+  .admin-blueprint-fullscreen .admin-glass-core{transform:translate(-50%,-50%) scale(.95)}
+  .admin-blueprint-fullscreen .admin-blueprint-node{transform:translate(-50%,-50%) scale(.9)}
+}
