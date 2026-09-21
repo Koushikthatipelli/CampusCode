@@ -10,7 +10,9 @@ import { PDFParse } from "pdf-parse";
 // ============================================================
 
 const normalizeText = (value) => {
-  if (typeof value !== "string") return "";
+  if (typeof value !== "string") {
+    return "";
+  }
 
   return value
     .replace(/\u0000/g, "")
@@ -21,11 +23,13 @@ const normalizeText = (value) => {
 };
 
 // ============================================================
-// GOOGLE DRIVE FILE ID
+// EXTRACT GOOGLE DRIVE FILE ID
 // ============================================================
 
 const extractGoogleDriveFileId = (url) => {
-  if (typeof url !== "string") return null;
+  if (typeof url !== "string") {
+    return null;
+  }
 
   const value = url.trim();
 
@@ -51,7 +55,9 @@ const extractGoogleDriveFileId = (url) => {
 // ============================================================
 
 const isGoogleDriveUrl = (url) => {
-  if (typeof url !== "string") return false;
+  if (typeof url !== "string") {
+    return false;
+  }
 
   try {
     const parsed = new URL(url);
@@ -90,7 +96,10 @@ const downloadGoogleDrivePdf = async (driveUrl) => {
     path.join(os.tmpdir(), "campuscode-round2-")
   );
 
-  const tempPath = path.join(tempDir, `${fileId}.pdf`);
+  const tempPath = path.join(
+    tempDir,
+    `${fileId}.pdf`
+  );
 
   try {
     const response = await fetch(downloadUrl, {
@@ -125,7 +134,9 @@ const downloadGoogleDrivePdf = async (driveUrl) => {
     }
 
     if (!response.body) {
-      throw new Error("Google Drive returned an empty response.");
+      throw new Error(
+        "Google Drive returned an empty response."
+      );
     }
 
     await pipeline(
@@ -133,10 +144,14 @@ const downloadGoogleDrivePdf = async (driveUrl) => {
       fs.createWriteStream(tempPath)
     );
 
-    const stats = await fs.promises.stat(tempPath);
+    const stats = await fs.promises.stat(
+      tempPath
+    );
 
     if (!stats.size) {
-      throw new Error("The downloaded PDF is empty.");
+      throw new Error(
+        "The downloaded PDF is empty."
+      );
     }
 
     if (stats.size > MAX_FILE_SIZE) {
@@ -145,12 +160,17 @@ const downloadGoogleDrivePdf = async (driveUrl) => {
       );
     }
 
+    // --------------------------------------------------------
+    // VERIFY PDF HEADER
+    // --------------------------------------------------------
+
     const headerBuffer = Buffer.alloc(5);
 
-    const fileHandle = await fs.promises.open(
-      tempPath,
-      "r"
-    );
+    const fileHandle =
+      await fs.promises.open(
+        tempPath,
+        "r"
+      );
 
     try {
       await fileHandle.read(
@@ -163,18 +183,22 @@ const downloadGoogleDrivePdf = async (driveUrl) => {
       await fileHandle.close();
     }
 
-    const header = headerBuffer.toString("ascii");
+    const header =
+      headerBuffer.toString("ascii");
 
     if (header !== "%PDF-") {
-      const firstBytes = await fs.promises.readFile(
-        tempPath,
-        {
-          encoding: "utf8",
-        }
-      );
+      const firstBytes =
+        await fs.promises.readFile(
+          tempPath,
+          {
+            encoding: "utf8",
+          }
+        );
 
       const lowerContent =
-        firstBytes.slice(0, 1000).toLowerCase();
+        firstBytes
+          .slice(0, 1000)
+          .toLowerCase();
 
       if (
         contentType.includes("text/html") ||
@@ -198,10 +222,13 @@ const downloadGoogleDrivePdf = async (driveUrl) => {
     };
   } catch (error) {
     try {
-      await fs.promises.rm(tempDir, {
-        recursive: true,
-        force: true,
-      });
+      await fs.promises.rm(
+        tempDir,
+        {
+          recursive: true,
+          force: true,
+        }
+      );
     } catch {
       // Ignore cleanup errors.
     }
@@ -214,21 +241,27 @@ const downloadGoogleDrivePdf = async (driveUrl) => {
 // EXTRACT PDF TEXT
 // ============================================================
 
-const extractPdfText = async (filePath) => {
+const extractPdfText = async (
+  filePath
+) => {
   let parser = null;
 
   try {
-    const pdfBuffer = await fs.promises.readFile(
-      filePath
-    );
+    const pdfBuffer =
+      await fs.promises.readFile(
+        filePath
+      );
 
     if (!pdfBuffer.length) {
-      throw new Error("The PDF file is empty.");
+      throw new Error(
+        "The PDF file is empty."
+      );
     }
 
     if (
-      pdfBuffer.subarray(0, 5).toString("ascii") !==
-      "%PDF-"
+      pdfBuffer
+        .subarray(0, 5)
+        .toString("ascii") !== "%PDF-"
     ) {
       throw new Error(
         "The downloaded file is not a valid PDF."
@@ -239,7 +272,8 @@ const extractPdfText = async (filePath) => {
       data: pdfBuffer,
     });
 
-    const result = await parser.getText();
+    const result =
+      await parser.getText();
 
     const text = normalizeText(
       result?.text || ""
@@ -285,6 +319,7 @@ const extractPdfText = async (filePath) => {
 
 // ============================================================
 // GET ROUND 2 STATUS
+//
 // GET /api/student/round2/hackathons/:hackathonId
 // ============================================================
 
@@ -297,7 +332,12 @@ export const getRound2Status = async (
       req.user?.id ||
       req.user?.user_id;
 
-    const { hackathonId } = req.params;
+    const { hackathonId } =
+      req.params;
+
+    // --------------------------------------------------------
+    // AUTH CHECK
+    // --------------------------------------------------------
 
     if (!studentId) {
       return res.status(401).json({
@@ -309,7 +349,8 @@ export const getRound2Status = async (
     if (!hackathonId) {
       return res.status(400).json({
         success: false,
-        message: "Hackathon ID is required",
+        message:
+          "Hackathon ID is required",
       });
     }
 
@@ -330,11 +371,15 @@ export const getRound2Status = async (
           AND hp.user_id = $2
         LIMIT 1
         `,
-        [hackathonId, studentId]
+        [
+          hackathonId,
+          studentId,
+        ]
       );
 
     if (
-      registrationResult.rows.length === 0
+      registrationResult.rows.length ===
+      0
     ) {
       return res.status(403).json({
         success: false,
@@ -366,11 +411,13 @@ export const getRound2Status = async (
       );
 
     if (
-      hackathonResult.rows.length === 0
+      hackathonResult.rows.length ===
+      0
     ) {
       return res.status(404).json({
         success: false,
-        message: "Hackathon not found.",
+        message:
+          "Hackathon not found.",
       });
     }
 
@@ -379,9 +426,10 @@ export const getRound2Status = async (
 
     // --------------------------------------------------------
     // GET STUDENT TEAM
+    //
     // IMPORTANT:
-    // Do NOT use t.team_code because that column
-    // does not exist in the current database.
+    // Do NOT use t.team_code.
+    // That column does not exist.
     // --------------------------------------------------------
 
     const teamResult =
@@ -399,7 +447,10 @@ export const getRound2Status = async (
           AND t.hackathon_id = $2
         LIMIT 1
         `,
-        [studentId, hackathonId]
+        [
+          studentId,
+          hackathonId,
+        ]
       );
 
     const team =
@@ -407,9 +458,16 @@ export const getRound2Status = async (
 
     // --------------------------------------------------------
     // GET ROUND 1 DECISION
+    //
     // IMPORTANT:
-    // Current schema uses decided_at, not reviewed_at.
-    // Current schema does not have score here.
+    // round1_decisions uses:
+    // decision
+    // organizer_feedback
+    // decided_by
+    // decided_at
+    //
+    // No score.
+    // No reviewed_at.
     // --------------------------------------------------------
 
     let round1Decision = null;
@@ -429,12 +487,15 @@ export const getRound2Status = async (
           ORDER BY decided_at DESC NULLS LAST
           LIMIT 1
           `,
-          [hackathonId, team.id]
+          [
+            hackathonId,
+            team.id,
+          ]
         );
 
       round1Decision =
-        round1DecisionResult.rows[0] ||
-        null;
+        round1DecisionResult
+          .rows[0] || null;
     }
 
     // --------------------------------------------------------
@@ -459,13 +520,15 @@ export const getRound2Status = async (
     // CHECK ROUND 1 DECISION
     // --------------------------------------------------------
 
-    const normalizedDecision =
+    const normalizedRound1Decision =
       String(
-        round1Decision.decision || ""
+        round1Decision.decision ||
+          ""
       ).toUpperCase();
 
     if (
-      normalizedDecision !== "SELECTED"
+      normalizedRound1Decision !==
+      "SELECTED"
     ) {
       return res.json({
         success: true,
@@ -474,14 +537,15 @@ export const getRound2Status = async (
           "Your team was not selected for Round 2.",
         hackathon,
         team,
-        decision: round1Decision,
+        decision:
+          round1Decision,
         submission: null,
         round_status: "LOCKED",
       });
     }
 
     // --------------------------------------------------------
-    // GET EXISTING ROUND 2 SUBMISSION
+    // GET ROUND 2 SUBMISSION
     // --------------------------------------------------------
 
     const submissionResult =
@@ -506,7 +570,7 @@ export const getRound2Status = async (
         `,
         [
           hackathonId,
-          team?.id || null,
+          team.id,
         ]
       );
 
@@ -516,6 +580,19 @@ export const getRound2Status = async (
 
     // --------------------------------------------------------
     // GET ROUND 2 DECISION
+    //
+    // IMPORTANT:
+    // round2_decisions uses:
+    // decision
+    // organizer_feedback
+    // decided_by
+    // decided_at
+    //
+    // We alias decided_by / decided_at
+    // so the frontend can continue receiving:
+    // reviewed_by / reviewed_at
+    //
+    // NO score column.
     // --------------------------------------------------------
 
     const decisionResult =
@@ -526,24 +603,24 @@ export const getRound2Status = async (
           hackathon_id,
           team_id,
           decision,
-          score,
           organizer_feedback,
-          reviewed_by,
-          reviewed_at
+          decided_by AS reviewed_by,
+          decided_at AS reviewed_at
         FROM round2_decisions
         WHERE hackathon_id = $1
           AND team_id = $2
-        ORDER BY reviewed_at DESC NULLS LAST
+        ORDER BY decided_at DESC NULLS LAST
         LIMIT 1
         `,
         [
           hackathonId,
-          team?.id || null,
+          team.id,
         ]
       );
 
     const round2Decision =
-      decisionResult.rows[0] || null;
+      decisionResult.rows[0] ||
+      null;
 
     // --------------------------------------------------------
     // CHECK CURRENT ROUND
@@ -575,15 +652,23 @@ export const getRound2Status = async (
       message,
       hackathon,
       team,
+
+      // Round 2 decision if available,
+      // otherwise Round 1 decision.
       decision:
         round2Decision ||
         round1Decision,
+
       round1_decision:
         round1Decision,
+
       submission,
-      round_status: accessible
-        ? "OPEN"
-        : "LOCKED",
+
+      round_status:
+        accessible
+          ? "OPEN"
+          : "LOCKED",
+
       current_round:
         currentRound,
     });
@@ -608,6 +693,7 @@ export const getRound2Status = async (
 
 // ============================================================
 // SUBMIT ROUND 2
+//
 // POST /api/student/round2/hackathons/:hackathonId/submit
 // ============================================================
 
@@ -627,6 +713,7 @@ export const submitRound2 = async (
 
     // --------------------------------------------------------
     // INPUT
+    //
     // GitHub = OPTIONAL
     // PDF = REQUIRED
     // --------------------------------------------------------
@@ -703,11 +790,15 @@ export const submitRound2 = async (
           AND user_id = $2
         LIMIT 1
         `,
-        [hackathonId, studentId]
+        [
+          hackathonId,
+          studentId,
+        ]
       );
 
     if (
-      registrationResult.rows.length === 0
+      registrationResult.rows.length ===
+      0
     ) {
       return res.status(403).json({
         success: false,
@@ -739,7 +830,8 @@ export const submitRound2 = async (
       );
 
     if (
-      hackathonResult.rows.length === 0
+      hackathonResult.rows.length ===
+      0
     ) {
       return res.status(404).json({
         success: false,
@@ -770,9 +862,10 @@ export const submitRound2 = async (
     }
 
     // --------------------------------------------------------
-    // GET TEAM
+    // GET STUDENT TEAM
+    //
     // IMPORTANT:
-    // team_code removed because it does not exist.
+    // team_code removed.
     // --------------------------------------------------------
 
     const teamResult =
@@ -790,7 +883,10 @@ export const submitRound2 = async (
           AND t.hackathon_id = $2
         LIMIT 1
         `,
-        [studentId, hackathonId]
+        [
+          studentId,
+          hackathonId,
+        ]
       );
 
     if (
@@ -807,7 +903,10 @@ export const submitRound2 = async (
       teamResult.rows[0];
 
     // --------------------------------------------------------
-    // CHECK ROUND 1 DECISION
+    // GET ROUND 1 DECISION
+    //
+    // No score.
+    // No reviewed_at.
     // --------------------------------------------------------
 
     const round1DecisionResult =
@@ -824,12 +923,15 @@ export const submitRound2 = async (
         ORDER BY decided_at DESC NULLS LAST
         LIMIT 1
         `,
-        [hackathonId, team.id]
+        [
+          hackathonId,
+          team.id,
+        ]
       );
 
     if (
-      round1DecisionResult.rows.length ===
-      0
+      round1DecisionResult.rows
+        .length === 0
     ) {
       return res.status(400).json({
         success: false,
@@ -839,7 +941,8 @@ export const submitRound2 = async (
     }
 
     const round1Decision =
-      round1DecisionResult.rows[0];
+      round1DecisionResult
+        .rows[0];
 
     // --------------------------------------------------------
     // ROUND 1 MUST BE SELECTED
@@ -847,11 +950,13 @@ export const submitRound2 = async (
 
     const normalizedDecision =
       String(
-        round1Decision.decision || ""
+        round1Decision.decision ||
+          ""
       ).toUpperCase();
 
     if (
-      normalizedDecision !== "SELECTED"
+      normalizedDecision !==
+      "SELECTED"
     ) {
       return res.status(403).json({
         success: false,
@@ -883,19 +988,23 @@ export const submitRound2 = async (
           AND team_id = $2
         LIMIT 1
         `,
-        [hackathonId, team.id]
+        [
+          hackathonId,
+          team.id,
+        ]
       );
 
     if (
-      existingSubmissionResult.rows
-        .length > 0
+      existingSubmissionResult
+        .rows.length > 0
     ) {
       return res.status(409).json({
         success: false,
         message:
           "Your team has already submitted Round 2.",
         submission:
-          existingSubmissionResult.rows[0],
+          existingSubmissionResult
+            .rows[0],
       });
     }
 
@@ -946,7 +1055,7 @@ export const submitRound2 = async (
     }
 
     // --------------------------------------------------------
-    // INSERT SUBMISSION
+    // INSERT ROUND 2 SUBMISSION
     // --------------------------------------------------------
 
     const insertResult =
