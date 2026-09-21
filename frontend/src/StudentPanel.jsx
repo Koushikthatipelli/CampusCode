@@ -247,7 +247,7 @@ function DashboardDiscover({ navigate }) {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     Promise.allSettled([apiFetch("/hackathons"), apiFetch("/student/hackathons/my-hackathons")]).then(([all, mine]) => {
-      if (all.status === "fulfilled") setItems(dedupeHackathons(unwrapList(all.value, ["hackathons", "events", "items"])).slice(0, 3));
+      if (all.status === "fulfilled") setItems(unwrapList(all.value, ["hackathons", "events", "items"]).slice(0, 3));
       if (mine.status === "fulfilled") setJoined(new Set(unwrapList(mine.value, ["hackathons", "registrations", "items", "data"]).map((x) => String(x.hackathon_id || x.hackathon?.id || x.id || ""))));
     }).finally(() => setLoading(false));
   }, []);
@@ -279,7 +279,7 @@ function HackathonsPage({ onOpen, onJoined }) {
         apiFetch("/student/hackathons/my-hackathons"),
       ]);
       if (allResult.status === "rejected") throw allResult.reason;
-      const all = dedupeHackathons(unwrapList(allResult.value, ["hackathons", "events", "items"]));
+      const all = unwrapList(allResult.value, ["hackathons", "events", "items"]);
       const mine = mineResult.status === "fulfilled"
         ? unwrapList(mineResult.value, ["hackathons", "registrations", "items", "data"])
         : [];
@@ -357,9 +357,9 @@ function RegistrationsPage({ onOpen }) {
     setLoading(true); setError("");
     try {
       const result = await apiFetch("/student/hackathons/my-hackathons");
-      const registrations = dedupeHackathons(Array.isArray(result?.hackathons)
+      const registrations = Array.isArray(result?.hackathons)
         ? result.hackathons
-        : unwrapList(result, ["hackathons", "registrations", "events", "items"]));
+        : unwrapList(result, ["hackathons", "registrations", "events", "items"]);
       setItems(registrations);
     } catch (err) {
       setError(err.message);
@@ -1309,6 +1309,7 @@ function StudentMyTeamPage() {
   const [selectedHackathonId, setSelectedHackathonId] = useState("");
   const [teamName, setTeamName] = useState("");
   const [loading, setLoading] = useState(true);
+  const [teamLoading, setTeamLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -1317,63 +1318,158 @@ function StudentMyTeamPage() {
   const [message, setMessage] = useState("");
 
   const currentUserId = String(storedUser?.id || storedUser?.user_id || "");
+
+  const getHackathonId = (item) => String(
+    item?.hackathon_id || item?.hackathon?.id || item?.id || ""
+  );
+
+  const getHackathonTitle = (item) => value(
+    item?.hackathon?.title,
+    item?.title,
+    item?.name,
+    item?.hackathon_name,
+    "Hackathon"
+  );
+
+  const getHackathonStatus = (item) => String(
+    item?.hackathon?.status ||
+    item?.status ||
+    item?.hackathon_status ||
+    ""
+  ).toUpperCase();
+
+  const isHackathonCompleted = (item) => {
+    const status = getHackathonStatus(item);
+    return ["COMPLETED", "COMPLETE", "FINISHED", "CLOSED", "ARCHIVED"].includes(status);
+  };
+
   const leaderId = String(team?.leader_id || team?.leader?.id || "");
   const isLeader = Boolean(currentUserId && leaderId && currentUserId === leaderId);
+  const selectedRegistration = registrations.find(
+    (item) => getHackathonId(item) === String(selectedHackathonId)
+  );
+  const hackathonCompleted = isHackathonCompleted(selectedRegistration) ||
+    isHackathonCompleted(team?.hackathon) ||
+    ["COMPLETED", "COMPLETE", "FINISHED", "CLOSED", "ARCHIVED"].includes(
+      String(team?.hackathon_status || "").toUpperCase()
+    );
   const isBuilding = String(team?.status || "BUILDING").toUpperCase() === "BUILDING";
+  const canModifyTeam = Boolean(team && !hackathonCompleted && isBuilding);
+
+  const normalizeTeams = (result) =>
+    unwrapList(result, ["teams", "data", "items"]);
 
   const loadRegistrations = async () => {
+    const result = await apiFetch("/student/hackathons/my-hackathons");
+    const items = unwrapList(result, ["hackathons", "registrations", "events", "data"]);
+    setRegistrations(items);
+    return items;
+  };
+
+  const loadTeamForHackathon = async (hackathonId, registrationList = registrations) => {
+    if (!hackathonId) {
+      setTeam(null);
+      setMembers([]);
+      setTeamName("");
+      return;
+    }
+
+    setTeamLoading(true);
+    setError("");
+
     try {
-      const result = await apiFetch("/student/hackathons/my-hackathons");
-      const items = unwrapList(result, ["hackathons", "registrations", "events", "data"]);
-      setRegistrations(items);
-      if (!selectedHackathonId && items.length) {
-        const firstId = items[0].hackathon_id || items[0].id || items[0].hackathon?.id;
-        if (firstId) setSelectedHackathonId(String(firstId));
+      // IMPORTANT: teams are loaded for the selected hackathon.
+      // We never use /student/team here because that endpoint returns the
+      // student's latest team and can therefore show an old hackathon team.
+      const result = await apiFetch(`/hackathons/${encodeURIComponent(hackathonId)}/teams`);
+      const teams = normalizeTeams(result);
+
+      const matchingTeam = teams.find((candidate) => {
+        const candidateMembers = Array.isArray(candidate?.members) ? candidate.members : [];
+        const memberMatch = candidateMembers.some((member) =>
+          String(member?.user_id || member?.id || "") === currentUserId
+        );
+        const leaderMatch = String(candidate?.leader_id || "") === currentUserId;
+        return memberMatch || leaderMatch;
+      }) || null;
+
+      setTeam(matchingTeam);
+      setMembers(Array.isArray(matchingTeam?.members) ? matchingTeam.members : []);
+      setTeamName(matchingTeam?.name || matchingTeam?.team_name || "");
+
+      const selected = registrationList.find(
+        (item) => getHackathonId(item) === String(hackathonId)
+      );
+
+      if (matchingTeam && selected && !selected?.hackathon) {
+        // Keep the registration object untouched; status is still read from
+        // the selected hackathon/team data when available.
       }
     } catch (err) {
+      setTeam(null);
+      setMembers([]);
+      setTeamName("");
       setError(err.message);
+    } finally {
+      setTeamLoading(false);
     }
   };
 
-  const loadTeam = async () => {
+  const load = async () => {
     setLoading(true);
     setError("");
     try {
-      const result = await apiFetch("/student/team");
-      const nextTeam = result?.team || result?.data?.team || result?.data || null;
-      setTeam(nextTeam);
-      setMembers(Array.isArray(nextTeam?.members) ? nextTeam.members : []);
-      if (nextTeam?.hackathon_id) setSelectedHackathonId(String(nextTeam.hackathon_id));
-      if (nextTeam?.name || nextTeam?.team_name) setTeamName(nextTeam.name || nextTeam.team_name || "");
-    } catch (err) {
-      if (String(err.message || "").toLowerCase().includes("team not found")) {
+      const items = await loadRegistrations();
+      if (!items.length) {
+        setSelectedHackathonId("");
         setTeam(null);
         setMembers([]);
-      } else {
-        setTeam(null);
-        setMembers([]);
-        setError(err.message);
+        setTeamName("");
+        return;
       }
+
+      const firstId = getHackathonId(items[0]);
+      setSelectedHackathonId((current) => current || firstId);
+      await loadTeamForHackathon(firstId, items);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    Promise.all([loadRegistrations(), loadTeam()]);
+    load();
   }, []);
+
+  const handleHackathonChange = async (nextId) => {
+    setSelectedHackathonId(nextId);
+    setTeam(null);
+    setMembers([]);
+    setTeamName("");
+    setMessage("");
+    setError("");
+    await loadTeamForHackathon(nextId, registrations);
+  };
 
   const createTeam = async () => {
     if (!selectedHackathonId) return setError("Choose a registered hackathon first.");
+    if (hackathonCompleted) return setError("This hackathon is completed. Teams are read-only.");
     if (!teamName.trim()) return setError("Enter a team name first.");
+
     setCreating(true); setError(""); setMessage("");
     try {
-      await apiFetch(`/hackathons/${encodeURIComponent(selectedHackathonId)}/teams`, {
+      const result = await apiFetch(`/hackathons/${encodeURIComponent(selectedHackathonId)}/teams`, {
         method: "POST",
         body: JSON.stringify({ name: teamName.trim() }),
       });
-      setMessage("Your team was created successfully.");
-      await loadTeam();
+      const created = result?.team || result?.data?.team || null;
+      setMessage(result?.message || "Your team was created successfully.");
+      if (created) {
+        setTeam(created);
+        setMembers(Array.isArray(created.members) ? created.members : []);
+      }
+      await loadTeamForHackathon(selectedHackathonId, registrations);
     } catch (err) {
       setError(err.message);
     } finally { setCreating(false); }
@@ -1382,8 +1478,9 @@ function StudentMyTeamPage() {
   const updateTeam = async () => {
     if (!team?.id) return;
     if (!isLeader) return setError("Only the team leader can update the team.");
-    if (!isBuilding) return setError("This team can no longer be edited.");
+    if (!canModifyTeam) return setError("This team can no longer be edited.");
     if (!teamName.trim()) return setError("Enter a team name first.");
+
     setUpdating(true); setError(""); setMessage("");
     try {
       const result = await apiFetch(`/teams/${encodeURIComponent(team.id)}`, {
@@ -1391,12 +1488,9 @@ function StudentMyTeamPage() {
         body: JSON.stringify({ name: teamName.trim() }),
       });
       const updated = result?.team || result?.data?.team || result?.data || null;
-      if (updated) {
-        setTeam((current) => ({ ...current, ...updated }));
-        if (Array.isArray(updated.members)) setMembers(updated.members);
-      }
-      setMessage("Team details updated successfully.");
-      await loadTeam();
+      if (updated) setTeam((current) => ({ ...current, ...updated }));
+      setMessage(result?.message || "Team details updated successfully.");
+      await loadTeamForHackathon(selectedHackathonId, registrations);
     } catch (err) {
       setError(err.message);
     } finally { setUpdating(false); }
@@ -1404,9 +1498,13 @@ function StudentMyTeamPage() {
 
   const exitTeam = async () => {
     if (!team?.id || isLeader) return;
-    if (!isBuilding) return setError("You cannot exit a team after the team has moved beyond BUILDING.");
-    const confirmed = window.confirm(`Exit ${team.name || team.team_name || "this team"}? You will leave the team and can join another eligible team.`);
+    if (!canModifyTeam) return setError("You cannot exit a completed or locked team.");
+
+    const confirmed = window.confirm(
+      `Exit ${team.name || team.team_name || "this team"}? You will leave the team.`
+    );
     if (!confirmed) return;
+
     setLeaving(true); setError(""); setMessage("");
     try {
       const result = await apiFetch(`/teams/${encodeURIComponent(team.id)}/leave`, { method: "DELETE" });
@@ -1419,9 +1517,13 @@ function StudentMyTeamPage() {
 
   const deleteTeam = async () => {
     if (!team?.id || !isLeader) return;
-    if (!isBuilding) return setError("Only BUILDING teams can be deleted.");
-    const confirmed = window.confirm(`Delete ${team.name || team.team_name || "this team"}? This action cannot be undone.`);
+    if (!canModifyTeam) return setError("Only active BUILDING teams can be deleted.");
+
+    const confirmed = window.confirm(
+      `Delete ${team.name || team.team_name || "this team"}? This action cannot be undone.`
+    );
     if (!confirmed) return;
+
     setDeleting(true); setError(""); setMessage("");
     try {
       const result = await apiFetch(`/teams/${encodeURIComponent(team.id)}`, { method: "DELETE" });
@@ -1432,64 +1534,117 @@ function StudentMyTeamPage() {
     } finally { setDeleting(false); }
   };
 
-  const selectedRegistration = registrations.find((item) => {
-    const id = item.hackathon_id || item.id || item.hackathon?.id;
-    return String(id) === String(selectedHackathonId);
-  });
-
-  if (loading) return <LoadingState label="Loading your team..." />;
+  if (loading) return <LoadingState label="Loading your team workspace..." />;
 
   return (
-    <section>
+    <section className="student-my-team-page">
       <PageHeading
         eyebrow="BUILD / COLLABORATION"
         title="MY TEAM."
-        text="Manage your team, update its name, exit as a member, or delete it as the leader while the team is still BUILDING."
+        text="Select a hackathon to create, manage, or view your team history."
         count={members.length}
       />
 
-      {error && <ErrorState message={error} retry={() => { setError(""); loadTeam(); }} />}
+      <div className="student-team-selector-card">
+        <div>
+          <span className="student-feature-label">01 / SELECT HACKATHON</span>
+          <strong>{selectedRegistration ? getHackathonTitle(selectedRegistration) : "Choose a hackathon"}</strong>
+          <small>{hackathonCompleted ? "HACKATHON COMPLETED · READ ONLY" : "TEAM MANAGEMENT CONTEXT"}</small>
+        </div>
+        <select
+          className="student-data-select student-team-hackathon-select"
+          value={selectedHackathonId}
+          onChange={(e) => handleHackathonChange(e.target.value)}
+          disabled={teamLoading}
+        >
+          <option value="">Choose a registered hackathon</option>
+          {registrations.map((item) => {
+            const id = getHackathonId(item);
+            return (
+              <option key={id} value={id}>
+                {getHackathonTitle(item)}{isHackathonCompleted(item) ? " · COMPLETED" : ""}
+              </option>
+            );
+          })}
+        </select>
+      </div>
+
+      {error && <ErrorState message={error} retry={() => loadTeamForHackathon(selectedHackathonId, registrations)} />}
       {message && <div className="student-inline-success">{message}</div>}
 
-      {!team ? (
+      {teamLoading ? (
+        <LoadingState label="Loading selected hackathon team..." />
+      ) : !selectedHackathonId ? (
+        <EmptyState title="SELECT A HACKATHON" text="Choose a registered hackathon above to view or create its team." />
+      ) : !team ? (
         <div className="student-team-create-layout">
-          <div className="student-feature-card">
-            <span className="student-feature-label">NO TEAM FOUND</span>
-            <h2>CREATE YOUR TEAM</h2>
-            <p>You are registered, but you are not part of a team yet. Create your team here, then use HackMate AI to find compatible students.</p>
-            <div className="student-team-create-form">
-              <label>REGISTERED HACKATHON</label>
-              <select className="student-data-select" value={selectedHackathonId} onChange={(e) => setSelectedHackathonId(e.target.value)}>
-                <option value="">Choose a registered hackathon</option>
-                {registrations.map((item) => {
-                  const id = item.hackathon_id || item.id || item.hackathon?.id;
-                  return <option key={id} value={id}>{value(item.hackathon?.title, item.title, item.name, item.hackathon_name)}</option>;
-                })}
-              </select>
-              <label>TEAM NAME</label>
-              <input value={teamName} onChange={(e) => setTeamName(e.target.value)} placeholder="Enter your team name" className="student-team-name-input" />
-              <button type="button" className="student-primary-btn" onClick={createTeam} disabled={creating || !selectedHackathonId || !teamName.trim()}>
-                {creating ? "CREATING TEAM..." : "CREATE TEAM ↗"}
-              </button>
-            </div>
+          <div className="student-feature-card student-team-create-card">
+            <span className="student-feature-label">02 / NO TEAM</span>
+            <h2>{hackathonCompleted ? "HACKATHON COMPLETED" : "CREATE YOUR TEAM"}</h2>
+            <p>
+              {hackathonCompleted
+                ? "This hackathon is completed. No team changes are available."
+                : `You are not part of a team for ${getHackathonTitle(selectedRegistration)} yet.`}
+            </p>
+
+            {!hackathonCompleted && (
+              <div className="student-team-create-form">
+                <label>TEAM NAME</label>
+                <input
+                  value={teamName}
+                  onChange={(e) => setTeamName(e.target.value)}
+                  placeholder="Enter your team name"
+                  className="student-team-name-input"
+                  maxLength={80}
+                />
+                <button
+                  type="button"
+                  className="student-primary-btn"
+                  onClick={createTeam}
+                  disabled={creating || !selectedHackathonId || !teamName.trim()}
+                >
+                  {creating ? "CREATING TEAM..." : "CREATE TEAM ↗"}
+                </button>
+              </div>
+            )}
           </div>
-          <div className="student-feature-card student-team-help-card">
-            <span className="student-feature-label">TEAM CONTROLS</span>
-            <strong>01 · CREATE</strong><p>Create a team for one of your registered hackathons.</p>
-            <strong>02 · UPDATE</strong><p>The team leader can rename the team while it is BUILDING.</p>
-            <strong>03 · EXIT / DELETE</strong><p>Members can exit. The leader must delete the team instead of leaving it.</p>
+
+          <div className={`student-feature-card student-team-help-card ${hackathonCompleted ? "completed" : ""}`}>
+            <span className="student-feature-label">HACKATHON STATE</span>
+            {hackathonCompleted ? (
+              <>
+                <div className="student-team-mini-stamp">CAMPUSCODE<br />HACKATHON<br />COMPLETED ✓</div>
+                <p>This hackathon is preserved as history. Team records remain read-only.</p>
+              </>
+            ) : (
+              <>
+                <strong>CREATE</strong><p>The student who creates the team becomes the leader automatically.</p>
+                <strong>LEADER</strong><p>The leader can update or delete the team while it is BUILDING.</p>
+                <strong>MEMBER</strong><p>Members can leave the team while it is BUILDING.</p>
+              </>
+            )}
           </div>
         </div>
       ) : (
-        <div className="student-team-layout">
-          <div className="student-feature-card">
+        <div className={`student-team-layout ${hackathonCompleted ? "student-team-completed-layout" : ""}`}>
+          <div className="student-feature-card student-team-main-card">
+            {hackathonCompleted && (
+              <div className="student-completed-stamp" aria-label="CampusCode Hackathon Completed">
+                <span>CAMPUSCODE</span>
+                <strong>HACKATHON</strong>
+                <b>COMPLETED ✓</b>
+              </div>
+            )}
+
             <div className="student-team-head">
               <div>
-                <span className="student-feature-label">CURRENT TEAM</span>
+                <span className="student-feature-label">{hackathonCompleted ? "PAST TEAM / HISTORY" : "CURRENT TEAM"}</span>
                 <h2>{value(team.name, team.team_name)}</h2>
-                <p>{value(team.hackathon_title, team.hackathon?.title, selectedRegistration?.hackathon?.title, "Hackathon")}</p>
+                <p>{getHackathonTitle(selectedRegistration)}</p>
               </div>
-              <b className="student-team-status">{value(team.status, "BUILDING")}</b>
+              <b className={`student-team-status ${hackathonCompleted ? "completed" : ""}`}>
+                {hackathonCompleted ? "COMPLETED" : value(team.status, "BUILDING")}
+              </b>
             </div>
 
             <div className="student-info-list">
@@ -1502,11 +1657,14 @@ function StudentMyTeamPage() {
               <span className="student-feature-label">TEAM MEMBERS</span>
               {members.length ? members.map((member, index) => {
                 const memberId = String(member.user_id || member.id || "");
-                const memberIsLeader = memberId === leaderId;
+                const memberIsLeader = memberId === leaderId || String(member.role || "").toUpperCase() === "LEADER";
                 return (
                   <div className="student-member-row" key={member.id || member.user_id || member.name || index}>
                     <div className="student-member-avatar">{String(member.name || "U").charAt(0).toUpperCase()}</div>
-                    <div><strong>{value(member.name, "User")}</strong><span>{memberIsLeader ? "LEADER" : value(member.role, "MEMBER")}</span></div>
+                    <div>
+                      <strong>{value(member.name, "User")}</strong>
+                      <span>{memberIsLeader ? "LEADER" : "MEMBER"}</span>
+                    </div>
                     {memberId === currentUserId && <b>YOU</b>}
                   </div>
                 );
@@ -1514,38 +1672,65 @@ function StudentMyTeamPage() {
             </div>
           </div>
 
-          <div className="student-feature-card student-team-next-card">
-            <span className="student-feature-label">TEAM MANAGEMENT</span>
-            <h3>{isLeader ? "Leader controls" : "Member controls"}</h3>
-            <p>{isLeader ? "You are the team leader. Rename or delete the team while it is BUILDING." : "You are a team member. You can exit the team while it is BUILDING."}</p>
+          {!hackathonCompleted && (
+            <div className="student-feature-card student-team-next-card">
+              <span className="student-feature-label">TEAM MANAGEMENT</span>
+              <h3>{isLeader ? "Leader controls" : "Member controls"}</h3>
+              <p>
+                {isLeader
+                  ? "You created this team, so you are the leader. Update or delete it while it is BUILDING."
+                  : "You are a team member. You can leave the team while it is BUILDING."}
+              </p>
 
-            <div className="student-team-control-form">
-              <label>TEAM NAME</label>
-              <input value={teamName} onChange={(e) => setTeamName(e.target.value)} disabled={!isLeader || !isBuilding || updating} className="student-team-name-input" />
-              <button type="button" className="student-primary-btn" onClick={updateTeam} disabled={!isLeader || !isBuilding || updating || !teamName.trim() || teamName.trim() === String(team.name || team.team_name || "").trim()}>
-                {updating ? "UPDATING..." : "UPDATE TEAM ↗"}
-              </button>
-            </div>
-
-            <div className="student-team-danger-zone">
-              <span className="student-feature-label">DANGER ZONE</span>
-              {isLeader ? (
-                <>
-                  <p>As leader, you cannot exit directly. Delete the team if you want to disband it.</p>
-                  <button type="button" className="student-danger-btn" onClick={deleteTeam} disabled={deleting || !isBuilding}>
-                    {deleting ? "DELETING TEAM..." : "DELETE TEAM"}
+              {isLeader && (
+                <div className="student-team-control-form">
+                  <label>TEAM NAME</label>
+                  <input
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    disabled={!canModifyTeam || updating}
+                    className="student-team-name-input"
+                  />
+                  <button
+                    type="button"
+                    className="student-primary-btn"
+                    onClick={updateTeam}
+                    disabled={!canModifyTeam || updating || !teamName.trim() || teamName.trim() === String(team.name || team.team_name || "").trim()}
+                  >
+                    {updating ? "UPDATING..." : "UPDATE TEAM ↗"}
                   </button>
-                </>
-              ) : (
-                <>
-                  <p>Leaving removes you from this team. Your teammates and team remain unchanged.</p>
-                  <button type="button" className="student-danger-btn" onClick={exitTeam} disabled={leaving || !isBuilding}>
-                    {leaving ? "EXITING TEAM..." : "EXIT TEAM"}
-                  </button>
-                </>
+                </div>
               )}
+
+              <div className="student-team-danger-zone">
+                <span className="student-feature-label">TEAM ACTION</span>
+                {isLeader ? (
+                  <>
+                    <p>As leader, you cannot exit directly. Delete the team if you want to disband it.</p>
+                    <button type="button" className="student-danger-btn" onClick={deleteTeam} disabled={deleting || !canModifyTeam}>
+                      {deleting ? "DELETING TEAM..." : "DELETE TEAM"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p>Leaving removes you from this team. The team and other members remain unchanged.</p>
+                    <button type="button" className="student-danger-btn" onClick={exitTeam} disabled={leaving || !canModifyTeam}>
+                      {leaving ? "EXITING TEAM..." : "LEAVE TEAM"}
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {hackathonCompleted && (
+            <div className="student-feature-card student-team-history-card">
+              <span className="student-feature-label">03 / HISTORY</span>
+              <h3>HACKATHON COMPLETED.</h3>
+              <p>This team is now part of your CampusCode hackathon history. No create, update, leave, or delete controls are available.</p>
+              <div className="student-history-lock">🔒 READ ONLY · TEAM HISTORY PRESERVED</div>
+            </div>
+          )}
         </div>
       )}
     </section>
@@ -1735,11 +1920,7 @@ function StudentRoundOnePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
-  const [agreementOpen, setAgreementOpen] = useState(false);
-  const [agreementAccepted, setAgreementAccepted] = useState(false);
-
-  const agreementKey = selected ? `campuscode_participant_agreement_v1_${selected}` : "";
-  useEffect(() => { setAgreementAccepted(Boolean(agreementKey && localStorage.getItem(agreementKey) === "accepted")); }, [agreementKey]);
+  const [showAgreement, setShowAgreement] = useState(false);
 
   const loadStatus = async (id) => {
     if (!id) return;
@@ -1756,7 +1937,7 @@ function StudentRoundOnePage() {
 
   useEffect(() => {
     apiFetch("/student/hackathons/my-hackathons").then((result) => {
-      const list = dedupeHackathons(unwrapList(result, ["hackathons", "data"]));
+      const list = unwrapList(result, ["hackathons", "data"]);
       setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id));
     }).catch((err) => setError(err.message)).finally(() => setLoading(false));
   }, []);
@@ -1772,12 +1953,11 @@ function StudentRoundOnePage() {
   const submitted = Boolean(submission);
   const canSubmit = accessible && Boolean(team) && !submitted && !saving;
 
-  const submit = async (force = false) => {
+  const submit = async () => {
     const clean = statement.trim();
     if (clean.length < 20) return setError("Problem statement must contain at least 20 characters.");
     if (!selected) return setError("Select a hackathon first.");
     if (!team) return setError("You must be part of a team before submitting Round 1.");
-    if (!force && !agreementAccepted) { setAgreementOpen(true); return; }
     setSaving(true); setError(""); setMessage("");
     try {
       await apiFetch(`/student/round1/hackathons/${selected}/submit`, { method: "POST", body: JSON.stringify({ problem_statement: clean }) });
@@ -1804,23 +1984,11 @@ function StudentRoundOnePage() {
         <div className="student-feature-card student-round-form-card">
           <div className="student-feature-card-head"><div><span className="student-feature-label">ROUND 1 SUBMISSION</span><h2>What are you solving?</h2><p>Explain the problem, who experiences it, and what your team plans to solve.</p></div><div className="student-feature-icon"><Send size={18} /></div></div>
           {!team ? <div className="student-round-notice warning"><strong>TEAM REQUIRED</strong><span>Create or join a team before submitting Round 1.</span></div> : submitted ? <div className="student-round-submitted"><CheckCircle2 size={18} /><div><strong>SUBMITTED SUCCESSFULLY</strong><span>{submission.status || "SUBMITTED"}</span></div></div> : !accessible ? <div className="student-round-notice"><strong>ROUND 1 IS LOCKED</strong><span>{round.reason === "ROUND_COMPLETED" ? "Round 1 has been completed." : "The organizer has not opened Round 1 yet."}</span></div> : (
-            <div className="student-round-form"><div className="student-form-label-row"><label>PROBLEM STATEMENT *</label><span>{statement.length} / 5000</span></div><textarea value={statement} onChange={(e) => setStatement(e.target.value.slice(0, 5000))} rows={10} maxLength={5000} disabled={!canSubmit} placeholder="Example: Students struggle to discover relevant hackathons and form teams with complementary skills..." /><div className="student-form-actions"><span>Minimum 20 characters. Once submitted, your team cannot submit Round 1 again.</span><button className="student-primary-btn" disabled={!canSubmit || statement.trim().length < 20} onClick={() => submit(false)}>{saving ? "SUBMITTING..." : "SUBMIT ROUND 1 ↗"}</button></div></div>
+            <div className="student-round-form"><div className="student-form-label-row"><label>PROBLEM STATEMENT *</label><span>{statement.length} / 5000</span></div><textarea value={statement} onChange={(e) => setStatement(e.target.value.slice(0, 5000))} rows={10} maxLength={5000} disabled={!canSubmit} placeholder="Example: Students struggle to discover relevant hackathons and form teams with complementary skills..." /><div className="student-form-actions"><span>Minimum 20 characters. Once submitted, your team cannot submit Round 1 again.</span><button className="student-primary-btn" disabled={!canSubmit || statement.trim().length < 20} onClick={() => setShowAgreement(true)}>{saving ? "SUBMITTING..." : "SUBMIT ROUND 1 ↗"}</button></div></div>
           )}
         </div>
       </div>
-      <ParticipantAgreementModal
-        open={agreementOpen}
-        hackathonName={hackathon.title || hackathon.name || "this hackathon"}
-        accepted={agreementAccepted}
-        onClose={() => setAgreementOpen(false)}
-        onAccept={() => {
-          if (!agreementKey) return;
-          localStorage.setItem(agreementKey, "accepted");
-          setAgreementAccepted(true);
-          setAgreementOpen(false);
-          submit(true);
-        }}
-      />
+      <ParticipantAgreementModal open={showAgreement} hackathonName={value(hackathon.title, "Hackathon")} accepted={false} onClose={() => setShowAgreement(false)} onAccept={() => { setShowAgreement(false); submit(); }} />
     </section>
   );
 }
@@ -1828,7 +1996,7 @@ function StudentRoundOnePage() {
 function StudentRoundTwoPage() {
   const [items, setItems] = useState([]); const [selected, setSelected] = useState(""); const [data, setData] = useState(null); const [github, setGithub] = useState(""); const [pdf, setPdf] = useState(""); const [loading, setLoading] = useState(true); const [loadingStatus, setLoadingStatus] = useState(false); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const [message, setMessage] = useState("");
   const loadStatus = async (id) => { if (!id) return; setLoadingStatus(true); setError(""); try { const result = await apiFetch(`/student/round2/hackathons/${id}`); const payload = result; setData(payload); setGithub(payload?.submission?.github_url || ""); setPdf(payload?.submission?.pdf_url || ""); } catch (err) { setData(null); setError(err.message || "Failed to fetch Round 2 status"); } finally { setLoadingStatus(false); } };
-  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((result) => { const list = dedupeHackathons(unwrapList(result, ["hackathons", "data"])); setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id)); }).catch((err) => setError(err.message)).finally(() => setLoading(false)); }, []);
+  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((result) => { const list = unwrapList(result, ["hackathons", "data"]); setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id)); }).catch((err) => setError(err.message)).finally(() => setLoading(false)); }, []);
   useEffect(() => { setMessage(""); loadStatus(selected); }, [selected]);
   const submission = data?.submission || null; const accessible = data?.accessible === true; const submitted = Boolean(submission);
   const submit = async () => { if (!selected) return setError("Select a hackathon first."); if (!github.trim()) return setError("GitHub URL is required."); if (!pdf.trim()) return setError("Google Drive PDF URL is required by the current backend."); setSaving(true); setError(""); setMessage(""); try { const result = await apiFetch(`/student/round2/hackathons/${selected}/submit`, { method: "POST", body: JSON.stringify({ github_url: github.trim(), pdf_url: pdf.trim() }) }); if (result?.submission) setData((current) => ({ ...(current || {}), submission: result.submission })); setMessage("Round 2 project submitted successfully."); await loadStatus(selected); } catch (err) { setError(err.message || "Failed to submit Round 2"); } finally { setSaving(false); } };
@@ -1839,7 +2007,7 @@ function StudentRoundTwoPage() {
 function StudentRoundThreePage() {
   const [items, setItems] = useState([]); const [selected, setSelected] = useState(""); const [data, setData] = useState(null); const [github, setGithub] = useState(""); const [demo, setDemo] = useState(""); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(true); const [loadingStatus, setLoadingStatus] = useState(false); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const [message, setMessage] = useState("");
   const loadStatus = async (id) => { if (!id) return; setLoadingStatus(true); setError(""); try { const result = await apiFetch(`/student/round3/hackathons/${id}`); const payload = result?.round3 || result?.data || result; setData({ ...payload, round2: result?.round2 || payload?.round2 }); setGithub(payload?.submission?.github_url || ""); setDemo(payload?.submission?.demo_url || ""); setDescription(payload?.submission?.project_description || ""); } catch (err) { setData(null); setError(err.message || "Failed to fetch Round 3 status"); } finally { setLoadingStatus(false); } };
-  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((result) => { const list = dedupeHackathons(unwrapList(result, ["hackathons", "data"])); setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id)); }).catch((err) => setError(err.message)).finally(() => setLoading(false)); }, []);
+  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((result) => { const list = unwrapList(result, ["hackathons", "data"]); setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id)); }).catch((err) => setError(err.message)).finally(() => setLoading(false)); }, []);
   useEffect(() => { setMessage(""); loadStatus(selected); }, [selected]);
   const submission = data?.submission || null; const accessible = data?.accessible === true; const submitted = Boolean(submission);
   const submit = async () => { if (!selected) return setError("Select a hackathon first."); if (!github.trim()) return setError("GitHub repository URL is required."); setSaving(true); setError(""); setMessage(""); try { const result = await apiFetch(`/student/round3/hackathons/${selected}/submit`, { method: "POST", body: JSON.stringify({ github_url: github.trim(), demo_url: demo.trim() || null, project_description: description.trim() || null }) }); if (result?.submission) setData((current) => ({ ...(current || {}), submission: result.submission })); setMessage("Round 3 final submission sent successfully."); await loadStatus(selected); } catch (err) { setError(err.message || "Failed to submit Round 3"); } finally { setSaving(false); } };
@@ -1858,7 +2026,7 @@ function StudentSubmissionsPage({ project }) {
 
 function StudentResultsPage() {
   const [hackathons, setHackathons] = useState([]); const [selected, setSelected] = useState(""); const [results, setResults] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState("");
-  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((d) => { const list = dedupeHackathons(unwrapList(d, ["hackathons", "registrations", "events", "data"])); setHackathons(list); if (list[0]?.hackathon_id || list[0]?.id) setSelected(String(list[0].hackathon_id || list[0].id)); }).catch((e) => setError(e.message)).finally(() => setLoading(false)); }, []);
+  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((d) => { const list = dedupeHackathons(unwrapList(d, ["hackathons", "registrations", "items", "data"])); setHackathons(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].hackathon?.id || list[0].id || "")); }).catch((e) => setError(e.message)).finally(() => setLoading(false)); }, []);
   useEffect(() => { if (!selected) return; setError(""); apiFetch(`/results/hackathon/${selected}`).then((d) => setResults(unwrapList(d, ["results", "data"]))).catch((e) => setError(e.message)); }, [selected]);
   if (loading) return <LoadingState label="Loading results..." />;
   return (
@@ -2031,6 +2199,16 @@ function StudentLeaderboardPage() {
   );
 }
 
+function StudentMilestoneOverlay({ milestone, onClose }) {
+  if (!milestone) return null;
+  const config = milestone.type === "registered"
+    ? { eyebrow: "REGISTRATION CONFIRMED", title: "YOU'RE IN.", copy: `Your registration for ${milestone.hackathon || "this hackathon"} is confirmed. Time to build.` }
+    : milestone.type === "advanced"
+      ? { eyebrow: "NEXT ROUND UNLOCKED", title: "YOU MADE IT THROUGH.", copy: `Your Round ${milestone.fromRound || 1} submission was selected. Round ${milestone.toRound || 2} is now unlocked.` }
+      : { eyebrow: "WINNER", title: "YOU DID IT.", copy: `Congratulations — you won ${milestone.hackathon || "the hackathon"}.` };
+  return <div className="student-milestone-backdrop"><div className="student-milestone-card"><div className="student-milestone-icon">✦</div><span>{config.eyebrow}</span><h2>{config.title}</h2><p>{config.copy}</p><button onClick={onClose}>CONTINUE BUILDING</button></div></div>;
+}
+
 function ParticipantAgreementModal({ open, hackathonName, accepted, onClose, onAccept }) {
   const [checked, setChecked] = useState(false);
   useEffect(() => { if (!open) setChecked(false); }, [open]);
@@ -2061,6 +2239,7 @@ function ParticipantAgreementModal({ open, hackathonName, accepted, onClose, onA
     </div>
   );
 }
+
 
 function StudentGuidePage() {
   const [openFaq, setOpenFaq] = useState(0);
@@ -2093,16 +2272,12 @@ function StudentGuidePage() {
   );
 }
 
+
 function OfficialCommunicationPage() {
   const channel = "https://whatsapp.com/channel/0029Vb8gR7TEVccLc1pW4O2d";
   return <section><PageHeading eyebrow="COMMUNICATION / OFFICIAL" title="OFFICIAL COMMUNICATION." text="Use the official CampusCode channel for important announcements and communication." /><div className="student-communication-hero"><div className="student-communication-icon">◉</div><div><span className="student-feature-label">CAMPUSCODE OFFICIAL CHANNEL</span><h2>Stay connected.</h2><p>Follow the official WhatsApp channel for hackathon updates, announcements, deadlines and important communication.</p><a href={channel} target="_blank" rel="noreferrer" className="student-primary-btn">OPEN WHATSAPP CHANNEL ↗</a></div></div><div className="student-two-col"><div className="student-feature-card"><span className="student-feature-label">IMPORTANT</span><h3>Check official updates first.</h3><p>When a deadline, round instruction or organizer decision changes, rely on the official communication shared by CampusCode and your hackathon organizer.</p></div><div className="student-feature-card"><span className="student-feature-label">QUICK ACCESS</span><h3>Keep this channel easy to find.</h3><p>Save or follow the channel so you can quickly return to official announcements when you are working on a submission.</p></div></div></section>;
 }
 
-function AgreementsPage() {
-  const accepted = [];
-  for (let i = 0; i < localStorage.length; i += 1) { const key = localStorage.key(i); if (key?.startsWith("campuscode_participant_agreement_v1_") && localStorage.getItem(key) === "accepted") accepted.push(key.replace("campuscode_participant_agreement_v1_", "")); }
-  return <section><PageHeading eyebrow="ACCOUNT / CONSENT" title="AGREEMENTS." text="Review the participant agreements accepted on this device." count={accepted.length} /><div className="student-feature-card student-agreements-page-card"><div className="student-agreement-record"><div className="student-agreement-record-icon"><CheckCircle2 size={19}/></div><div><strong>Participant Agreement · v1.0</strong><p>Applies to official Round 1 idea submission for each hackathon.</p></div><span>{accepted.length ? `${accepted.length} HACKATHON${accepted.length > 1 ? "S" : ""} ACCEPTED` : "NOT ACCEPTED YET"}</span></div>{accepted.length ? <div className="student-agreement-record-list">{accepted.map((id) => <div key={id}><span>HACKATHON ID</span><strong>{id}</strong><b>ACCEPTED</b></div>)}</div> : <EmptyState title="NO AGREEMENTS YET" text="Your Participant Agreement will appear here after you accept it before an official Round 1 submission." />}</div></section>;
-}
 
 function HelpSupportPage() {
   return <section><PageHeading eyebrow="HELP / SUPPORT" title="HELP & SUPPORT." text="Start with the guide and FAQs. If you still need help, use the official communication channel or contact your organizer." /><div className="student-support-grid"><div className="student-support-card"><span>01</span><h3>Student Guide</h3><p>Learn how the CampusCode workflow works from joining a hackathon through results.</p><button className="student-outline-btn" onClick={() => window.dispatchEvent(new CustomEvent("campuscode:navigate", { detail: "Student Guide" }))}>OPEN GUIDE →</button></div><div className="student-support-card"><span>02</span><h3>FAQs</h3><p>Find answers about teams, rounds, submissions, AI assistance and communication.</p><button className="student-outline-btn" onClick={() => window.dispatchEvent(new CustomEvent("campuscode:navigate", { detail: "Student Guide" }))}>VIEW FAQ →</button></div><div className="student-support-card"><span>03</span><h3>Official WhatsApp</h3><p>Follow the official CampusCode channel for announcements and important updates.</p><a className="student-outline-btn" href="https://whatsapp.com/channel/0029Vb8gR7TEVccLc1pW4O2d" target="_blank" rel="noreferrer">OPEN CHANNEL →</a></div></div></section>;
@@ -2117,6 +2292,7 @@ function StudentMilestoneOverlay({ milestone, onClose }) {
       : { eyebrow: "WINNER", title: "YOU DID IT.", copy: `Congratulations — you won ${milestone.hackathon || "the hackathon"}.` };
   return <div className="student-milestone-backdrop"><div className="student-milestone-card"><div className="student-milestone-icon">✦</div><span>{config.eyebrow}</span><h2>{config.title}</h2><p>{config.copy}</p><button onClick={onClose}>CONTINUE BUILDING</button></div></div>;
 }
+
 
 function StudentPanel() {
   const navigate = useNavigate();
@@ -2151,7 +2327,6 @@ function StudentPanel() {
     ["Student Guide", <Bot size={16} strokeWidth={1.8} />],
     ["Official Communication", <Bell size={16} strokeWidth={1.8} />],
     ["Notifications", <Bell size={16} strokeWidth={1.8} />],
-    ["Agreements", <CheckCircle2 size={16} strokeWidth={1.8} />],
     ["Help & Support", <Bot size={16} strokeWidth={1.8} />],
     ["Digital Card", <IdCard size={16} strokeWidth={1.8} />],
     ["Profile", <UserCircle size={16} strokeWidth={1.8} />],
@@ -2161,11 +2336,6 @@ function StudentPanel() {
   const refreshStudentPage = async () => {
     setRefreshKey((current) => current + 1);
   };
-  useEffect(() => {
-    const handler = (event) => { if (event.detail) handleNav(event.detail); };
-    window.addEventListener("campuscode:navigate", handler);
-    return () => window.removeEventListener("campuscode:navigate", handler);
-  }, []);
 
   let content = <OverviewPage navigate={handleNav} studentName={displayName} />;
   if (activeNav === "Hackathons") content = <HackathonsPage onOpen={(item) => { setSelectedHackathon(item); setActiveNav("My Registrations"); }} onJoined={(payload) => showMilestone("registered", payload)} />;
@@ -2183,7 +2353,6 @@ function StudentPanel() {
   if (activeNav === "Student Guide") content = <StudentGuidePage />;
   if (activeNav === "Official Communication") content = <OfficialCommunicationPage />;
   if (activeNav === "Notifications") content = <NotificationsPage />;
-  if (activeNav === "Agreements") content = <AgreementsPage />;
   if (activeNav === "Help & Support") content = <HelpSupportPage />;
   if (activeNav === "Digital Card") content = <DigitalCard />;
   if (activeNav === "Profile") content = <ProfilePage />;

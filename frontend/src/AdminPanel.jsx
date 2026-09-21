@@ -2472,6 +2472,29 @@ function ResultsPage() {
    integrated into the Admin panel.
 ========================================================= */
 
+function ActivityPage() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const load = async () => {
+    setLoading(true); setError("");
+    try {
+      const result = await apiFetch("/superadmin/activity");
+      setItems(unwrap(result, ["activity", "activities", "events", "logs", "data", "items"]));
+    } catch (e) {
+      setError(e.message || "Unable to load system activity.");
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+  return <section>
+    <PageTitle eyebrow="SYSTEM / ACTIVITY" title={<>System <span>activity.</span></>} description="Operational events and platform activity from the existing administration API." />
+    <div className="admin-panel-card admin-activity-shell">
+      <div className="admin-card-head"><div><span className="admin-kicker">LIVE ACTIVITY</span><h3>Platform event stream</h3></div><button className="event-action neutral" onClick={load}><RefreshCw size={14}/> Refresh</button></div>
+      {loading ? <div className="admin-loading"><LoaderCircle className="spin" size={20}/> Loading activity...</div> : error ? <ErrorBox message={error}/> : items.length ? <div className="admin-activity-list">{items.map((item,i)=><div className="admin-activity-row" key={item.id||i}><span className="admin-activity-icon"><Activity size={15}/></span><div><strong>{value(item.title || item.action || item.event || item.type, "SYSTEM EVENT")}</strong><p>{value(item.description || item.message || item.details, "Activity recorded by CampusCode.")}</p></div><time>{formatDate(item.created_at || item.createdAt || item.timestamp)} {formatTime(item.created_at || item.createdAt || item.timestamp)}</time></div>)}</div> : <Empty title="NO SYSTEM ACTIVITY" text="The backend returned no activity records." />}
+    </div>
+  </section>;
+}
+
 const ADMIN_BLUEPRINT = {
   campuscode: {
     id: "campuscode", name: "CAMPUSCODE", type: "PLATFORM", status: "ONLINE",
@@ -2883,16 +2906,17 @@ function SystemBlueprintPage() {
 
 function VersionControlPage() {
   const versions = [
-    { id: "v1", title: "v1", label: "FOUNDATION", status: "RELEASED", features: ["Platform foundation", "Authentication", "Core hackathon flow"] },
-    { id: "v2", title: "v2", label: "CORE BUILD", status: "RELEASED", features: ["Student workspace", "Organizer workspace", "Team management"] },
-    { id: "v3", title: "v3", label: "FEATURE EXPANSION", status: "RELEASED", features: ["Round lifecycle", "Submissions", "Results and leaderboard"] },
-    { id: "v4", title: "v4", label: "AI INTEGRATION", status: "RELEASED", features: ["IdeaCheck AI", "RuleBot AI", "AI-assisted workflows"] },
-    { id: "v5", title: "v5", label: "STABILITY", status: "RELEASED", features: ["UI refinement", "Performance improvements", "Workflow hardening"] },
-    { id: "v6", title: "v6", label: "CURRENT PLATFORM", status: "CURRENT", features: ["Integrated hackathon platform", "Advanced Admin controls", "Student experience improvements"] },
-    { id: "v7", title: "v7", label: "UPCOMING", status: "UPCOMING", features: ["Next-generation improvements", "Expanded platform intelligence", "Further UX refinement"] },
-    { id: "v8", title: "v8", label: "FINAL RELEASE", status: "FINAL", features: ["Final platform polish", "Production readiness", "Complete CampusCode ecosystem"] },
+    { id: "v1", title: "v1", label: "FOUNDATION", status: "RELEASED", features: ["CampusCode product foundation", "React + Vite frontend setup", "Node.js + Express API foundation", "PostgreSQL database foundation", "Authentication and JWT flow", "Role-based Student / Organizer / Admin access", "Initial hackathon creation and discovery", "Core student registration flow"] },
+    { id: "v2", title: "v2", label: "CORE HACKATHON PLATFORM", status: "RELEASED", features: ["Student workspace", "Organizer workspace", "Admin workspace", "Hackathon registration management", "Team creation and membership", "Hackathon-scoped team workflows", "Project management", "Notifications foundation"] },
+    { id: "v3", title: "v3", label: "COMPETITION FLOW", status: "RELEASED", features: ["Round 1 problem statement workflow", "Round 2 project submission", "Round 3 final submission", "Round access and locking", "Organizer decisions and feedback", "Results publication", "Leaderboard", "Submission tracking"] },
+    { id: "v4", title: "v4", label: "AI INTEGRATION", status: "RELEASED", features: ["IdeaCheck AI", "RuleBot AI", "HackMate AI", "AI-assisted Round 1 analysis", "AI-assisted Round 2 analysis", "Gemini integration", "AI feedback and recommendations", "Student intelligence workflows"] },
+    { id: "v5", title: "v5", label: "PLATFORM HARDENING", status: "RELEASED", features: ["Admin management improvements", "Approvals and evaluations", "Result approval workflow", "Notification improvements", "Hackathon completion history", "Completed stamps and round states", "UI and responsive refinements", "Deployment and workflow hardening"] },
+    { id: "v6", title: "v6", label: "CURRENT PLATFORM", status: "CURRENT", features: ["Integrated CampusCode platform", "System Activity", "Interactive System Blueprint", "Version Control", "Advanced Admin controls", "Student Guide and FAQ", "Official communication surface", "Round 1 participant agreement popup", "Hackathon-scoped My Team selector", "HackMate teammate intelligence", "Readable Student and Admin UI", "Current production experience"] },
+    { id: "v7", title: "v7", label: "UPCOMING", status: "UPCOMING", features: ["Advanced analytics", "Expanded platform intelligence", "Additional AI assistance", "System observability improvements", "Further UX refinement"] },
+    { id: "v8", title: "v8", label: "FINAL RELEASE", status: "FINAL", features: ["Final product polish", "Production readiness", "Complete CampusCode ecosystem", "Long-term stability and maintainability"] },
   ];
   const [selected, setSelected] = useState("v6");
+  const [versionModal, setVersionModal] = useState(null);
   const current = versions.find((item) => item.id === selected) || versions[5];
   return (
     <section className="admin-version-page">
@@ -2918,7 +2942,7 @@ function VersionControlPage() {
         <div className="admin-version-timeline">
           <div className="admin-version-line" />
           {versions.map((item) => (
-            <button key={item.id} type="button" className={`admin-version-node ${item.status.toLowerCase()} ${selected === item.id ? "active" : ""}`} onClick={() => setSelected(item.id)}>
+            <button key={item.id} type="button" className={`admin-version-node ${item.status.toLowerCase()} ${selected === item.id ? "active" : ""}`} onClick={() => { setSelected(item.id); setVersionModal(item); }}>
               <span className="admin-version-dot" />
               <strong>{item.title}</strong>
               <small>{item.status}</small>
@@ -2932,7 +2956,7 @@ function VersionControlPage() {
           <span className={`admin-version-badge ${current.status.toLowerCase()}`}>{current.status}</span>
           <div className="admin-version-detail-head"><div><strong>{current.title}</strong><span>{current.label}</span></div><GitBranch size={25} /></div>
           <p>This version represents a defined stage in the CampusCode product lifecycle. The feature list is presented as the product roadmap record and does not change the live backend.</p>
-          <div className="admin-version-feature-list">{current.features.map((feature) => <div key={feature}><CheckCircle2 size={15} /><span>{feature}</span></div>)}</div>
+          <div className="admin-version-feature-list">{current.features.map((feature) => <div key={feature}><CheckCircle2 size={15} /><span>{feature}</span></div>)}</div><button type="button" className="event-action neutral admin-version-open" onClick={() => setVersionModal(current)}>VIEW FULL VERSION →</button>
         </section>
         <section className="admin-panel-card">
           <div className="admin-card-head"><div><span className="admin-kicker">ROADMAP</span><h3>What comes next</h3></div><Zap size={18} /></div>
@@ -2940,6 +2964,17 @@ function VersionControlPage() {
           <div className="admin-version-roadmap-row"><span>v8</span><div><strong>FINAL</strong><p>Final planned CampusCode release and production polish.</p></div></div>
         </section>
       </div>
+      {versionModal && <div className="admin-version-modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) setVersionModal(null); }}>
+        <section className="admin-version-modal" role="dialog" aria-modal="true">
+          <button className="admin-version-modal-close" onClick={() => setVersionModal(null)}><X size={18}/></button>
+          <span className={`admin-version-badge ${versionModal.status.toLowerCase()}`}>{versionModal.status}</span>
+          <div className="admin-version-modal-version">{versionModal.title}</div>
+          <h2>{versionModal.label}</h2>
+          <p>Everything recorded for this CampusCode version is shown below.</p>
+          <div className="admin-version-modal-features">{versionModal.features.map((feature,index)=><div key={feature}><span>{String(index+1).padStart(2,"0")}</span><div><strong>{feature}</strong><p>Implemented as part of the {versionModal.label.toLowerCase()} stage of CampusCode.</p></div><CheckCircle2 size={18}/></div>)}</div>
+          <div className="admin-version-modal-actions"><button className="event-action neutral" onClick={() => setVersionModal(null)}><ArrowLeft size={14}/> BACK TO VERSIONS</button></div>
+        </section>
+      </div>}
     </section>
   );
 }
