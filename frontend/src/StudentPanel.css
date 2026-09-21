@@ -34,8 +34,8 @@
 html,body,#root{background:#f8f8f5;color:#111}
 .student-panel *{--logo-purple:#7566ff;--logo-lime:#8bcf19}
 .student-panel{background:#f8f8f5;color:#111}
-.student-bg-grid{background-image:linear-gradient(rgba(17,17,17,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(17,17,17,.045) 1px,transparent 1px)}
-.student-bg-orb{opacity:.13}.student-bg-orb.one{background:#b7e85b}.student-bg-orb.two{background:#9b8cff}
+.student-bg-grid{background-image:linear-gradient(rgba(124,58,237,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(167,217,75,.045) 1px,transparent 1px);background-size:56px 56px;opacity:.9}
+.student-bg-orb{opacity:.16;filter:blur(115px);z-index:0}.student-bg-orb.one{background:#a7d94b;top:-160px;right:8%}.student-bg-orb.two{background:#9b8cff;bottom:-220px;left:18%}
 .student-sidebar{background:rgba(248,248,245,.94);border-right-color:#deded8}
 .student-brand strong,.student-mobile-brand strong{color:#111}.student-brand span,.student-mobile-brand span{color:#888}
 .sidebar-label{color:#8b8b84}.student-sidebar nav button{color:#6f6f69}.student-sidebar nav button span{color:#8b8b84}.student-sidebar nav button:hover{color:#111;background:#eeeeea}.student-sidebar nav button.active{background:#a7d94b;color:#111;box-shadow:0 8px 28px rgba(115,145,45,.15)}
@@ -4777,212 +4777,38 @@ html, body, #root {
   }
 }
 
-
-/* =========================================================
-   CAMPUSCODE SHARED BACKGROUND — GRADIENT GLOW
-   Keep this behind every Student Panel page.
-========================================================= */
-.student-panel{
-  position:relative;
-  isolation:isolate;
-  background:
-    radial-gradient(circle at 82% 4%, rgba(117,102,255,.105), transparent 25%),
-    radial-gradient(circle at 12% 88%, rgba(167,217,75,.105), transparent 28%),
-    radial-gradient(circle at 52% 48%, rgba(255,255,255,.62), transparent 42%),
-    #f7f7f4 !important;
-}
-.student-bg-grid{
-  z-index:0 !important;
-  opacity:.52 !important;
-  background-image:
-    linear-gradient(rgba(17,17,17,.035) 1px,transparent 1px),
-    linear-gradient(90deg,rgba(17,17,17,.035) 1px,transparent 1px) !important;
-  background-size:56px 56px !important;
-  mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 92%);
-  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 92%);
-}
-.student-bg-orb{
-  z-index:0 !important;
-  width:520px !important;
-  height:520px !important;
-  opacity:.16 !important;
-  filter:blur(95px) !important;
-}
-.student-bg-orb.one{
-  background:#9b8cff !important;
-  top:-240px !important;
-  right:-80px !important;
-}
-.student-bg-orb.two{
-  background:#a7d94b !important;
-  bottom:-300px !important;
-  left:16% !important;
-}
-.student-main,.student-sidebar,.student-mobile-topbar{
-  position:relative;
-}
-.student-main{z-index:5}
-.student-sidebar{z-index:20}
-.student-mobile-topbar{z-index:60}
-
-/* =========================================================
-   PARTICIPANT AGREEMENT — missing light-theme styling
-========================================================= */
+/* ============================================================
+   PARTICIPANT AGREEMENT
+   Explicitly scoped so the acceptance control always receives CSS.
+============================================================ */
 .student-agreement-backdrop{
-  position:fixed;
-  inset:0;
-  z-index:200;
-  display:grid;
-  place-items:center;
-  padding:22px;
-  background:rgba(17,17,24,.34);
-  backdrop-filter:blur(12px);
-  -webkit-backdrop-filter:blur(12px);
-  animation:studentAgreementFade .2s ease both;
+  position:fixed;inset:0;z-index:1200;display:flex;align-items:center;justify-content:center;
+  padding:24px;background:rgba(17,17,17,.38);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
 }
 .student-agreement-modal{
-  position:relative;
-  width:min(620px,100%);
-  max-height:min(760px,calc(100vh - 44px));
-  overflow:auto;
-  padding:30px;
-  border:1px solid #deded8;
-  border-radius:20px;
-  background:rgba(255,255,255,.97);
-  color:#111;
-  box-shadow:0 28px 90px rgba(24,20,45,.18),0 8px 28px rgba(24,20,45,.08);
-  animation:studentAgreementIn .28s cubic-bezier(.2,.8,.2,1) both;
+  position:relative;width:min(720px,calc(100vw - 40px));max-height:calc(100dvh - 48px);overflow-y:auto;
+  padding:34px;border:1px solid #deded8;border-radius:22px;background:#fff;color:#111;
+  box-shadow:0 30px 100px rgba(17,17,17,.22);
 }
 .student-agreement-close{
-  position:absolute;
-  top:15px;
-  right:15px;
-  width:34px;
-  height:34px;
-  display:grid;
-  place-items:center;
-  border:1px solid #deded8;
-  border-radius:9px;
-  background:#fafaf7;
-  color:#777;
-  font-size:22px;
-  line-height:1;
-  cursor:pointer;
-  transition:.2s ease;
+  position:absolute;right:18px;top:18px;width:40px;height:40px;border:1px solid #deded8;border-radius:12px;
+  background:#f7f7f4;color:#555;font-size:24px;line-height:1;cursor:pointer;
 }
-.student-agreement-close:hover{color:#111;border-color:#c8c8c0;background:#f2f2ed}
-.student-agreement-modal .student-feature-label{
-  display:block;
-  color:#6f8e18;
-  font:900 8px/1 Inter,system-ui,sans-serif;
-  letter-spacing:.18em;
-}
-.student-agreement-modal h2{
-  margin:10px 45px 9px 0;
-  color:#111;
-  font-size:32px;
-  line-height:1;
-  letter-spacing:-.055em;
-}
-.student-agreement-intro{
-  margin:0;
-  color:#666;
-  font-size:10px;
-  line-height:1.75;
-}
-.student-agreement-intro strong{color:#222}
-.student-agreement-points{
-  display:grid;
-  gap:8px;
-  margin:22px 0;
-}
-.student-agreement-points>div{
-  display:grid;
-  grid-template-columns:34px 1fr;
-  gap:12px;
-  padding:13px 14px;
-  border:1px solid #e4e4de;
-  border-radius:11px;
-  background:#fafaf7;
-}
-.student-agreement-points>div>b{
-  display:grid;
-  place-items:center;
-  width:27px;
-  height:27px;
-  border-radius:7px;
-  background:#f0edff;
-  color:#7566ff;
-  font:900 8px/1 'DM Mono',monospace;
-}
-.student-agreement-points>div span{display:block;color:#666;font-size:9px;line-height:1.6}
-.student-agreement-points>div span strong{display:block;margin-bottom:2px;color:#222;font-size:9px}
-.student-agreement-check{
-  display:flex;
-  align-items:flex-start;
-  gap:10px;
-  padding:14px;
-  border:1px solid #ddd8f3;
-  border-radius:11px;
-  background:#f8f6ff;
-  color:#333;
-  font-size:9px;
-  font-weight:700;
-  line-height:1.5;
-  cursor:pointer;
-}
-.student-agreement-check input{
-  appearance:none;
-  -webkit-appearance:none;
-  flex:0 0 auto;
-  width:17px;
-  height:17px;
-  margin:0;
-  border:1px solid #c9c4dc;
-  border-radius:5px;
-  background:#fff;
-  cursor:pointer;
-  position:relative;
-}
-.student-agreement-check input:checked{
-  border-color:#7566ff;
-  background:#7566ff;
-}
-.student-agreement-check input:checked::after{
-  content:'✓';
-  position:absolute;
-  inset:0;
-  display:grid;
-  place-items:center;
-  color:#fff;
-  font-size:11px;
-  font-weight:900;
-}
-.student-agreement-actions{
-  display:flex;
-  justify-content:flex-end;
-  gap:8px;
-  margin-top:18px;
-}
-.student-agreement-actions .student-primary-btn:disabled{
-  opacity:.42;
-  cursor:not-allowed;
-  transform:none;
-  box-shadow:none;
-}
-.student-agreement-version{
-  display:block;
-  margin-top:13px;
-  color:#999;
-  font:500 7px/1.5 'DM Mono',monospace;
-  letter-spacing:.03em;
-}
-@keyframes studentAgreementFade{from{opacity:0}to{opacity:1}}
-@keyframes studentAgreementIn{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
-@media(max-width:600px){
-  .student-agreement-backdrop{padding:12px}
-  .student-agreement-modal{padding:24px 18px;max-height:calc(100vh - 24px);border-radius:16px}
-  .student-agreement-modal h2{font-size:27px}
-  .student-agreement-actions{flex-direction:column-reverse}
-  .student-agreement-actions button{width:100%}
-}
+.student-agreement-close:hover{background:#efefe9;color:#111}
+.student-agreement-modal .student-feature-label{display:block;color:#6f8e18;font:800 10px 'DM Mono',monospace;letter-spacing:.16em}
+.student-agreement-modal h2{margin:10px 50px 12px 0;font-size:clamp(30px,4vw,48px);line-height:1;letter-spacing:-.055em;color:#111}
+.student-agreement-intro{margin:0;color:#666;font-size:13px;line-height:1.8;max-width:620px}
+.student-agreement-points{display:grid;gap:10px;margin-top:24px}
+.student-agreement-points>div{display:grid;grid-template-columns:42px 1fr;gap:14px;padding:16px;border:1px solid #deded8;border-radius:14px;background:#fafaf7}
+.student-agreement-points>div>b{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:#eef6d9;color:#5e731d;font:800 10px 'DM Mono',monospace}
+.student-agreement-points>div span{color:#555;font-size:12px;line-height:1.65}
+.student-agreement-points>div span strong{display:block;color:#111;font-size:13px;margin-bottom:3px}
+.student-agreement-check{display:flex;align-items:flex-start;gap:11px;margin-top:18px;padding:14px 16px;border:1px solid #deded8;border-radius:12px;background:#f7f7f4;color:#333;font-size:12px;line-height:1.5;cursor:pointer}
+.student-agreement-check input{appearance:none;-webkit-appearance:none;width:19px;height:19px;min-width:19px;margin:0;margin-top:1px;border:1.5px solid #b8b8b0;border-radius:5px;background:#fff;cursor:pointer;position:relative}
+.student-agreement-check input:checked{background:#a7d94b;border-color:#8eb735}
+.student-agreement-check input:checked::after{content:'✓';position:absolute;inset:0;display:grid;place-items:center;color:#111;font:900 13px Inter,sans-serif}
+.student-agreement-check input:disabled{cursor:default;opacity:.9}
+.student-agreement-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}
+.student-agreement-actions .student-primary-btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+.student-agreement-version{display:block;margin-top:13px;color:#999;font:500 8px 'DM Mono',monospace;letter-spacing:.04em}
+@media(max-width:620px){.student-agreement-backdrop{padding:12px}.student-agreement-modal{width:100%;max-height:calc(100dvh - 24px);padding:24px 18px;border-radius:18px}.student-agreement-points>div{grid-template-columns:34px 1fr}.student-agreement-actions{flex-direction:column}.student-agreement-actions button{width:100%}}

@@ -222,9 +222,9 @@ function OrganizerPanel({
   return (
     <div className="organizer-page">
       <div className="org-bg">
-        <span className="org-orb orb-one" aria-hidden="true" />
-        <span className="org-orb orb-two" aria-hidden="true" />
-        <span className="org-grid" aria-hidden="true" />
+        <span className="org-orb orb-one" />
+        <span className="org-orb orb-two" />
+        <span className="org-grid" />
       </div>
 
       {sidebarOpen && (
@@ -580,11 +580,15 @@ function Picker({ hackathons, selectedId, setSelectedId }) {
       onChange={(e) => setSelectedId(e.target.value)}
     >
       {!uniqueHackathons.length && <option value="">No hackathons</option>}
-      {uniqueHackathons.map((h) => (
-        <option key={h.id} value={h.id}>
-          {h.title || h.name || `Hackathon ${h.id}`}
-        </option>
-      ))}
+      {uniqueHackathons.map((h) => {
+        const id = h.id || h.hackathon_id || h.hackathon?.id;
+        const title = h.title || h.name || h.hackathon?.title || h.hackathon_name || `Hackathon ${id}`;
+        return (
+          <option key={id} value={id}>
+            {title}
+          </option>
+        );
+      })}
     </select>
   );
 }
@@ -1866,7 +1870,9 @@ function OrganizerSubmissionModal({
 
   const rawFeedback =
     submission?.ai_feedback ??
-    ai?.feedback;
+    ai?.feedback ??
+    ai?.summary ??
+    ai?.response;
 
   const aiFeedback =
     typeof rawFeedback === "string"
@@ -1974,115 +1980,6 @@ function OrganizerSubmissionModal({
               )}
             </b>
           </span>
-        </div>
-
-        {/* SUBMISSION DETAILS */}
-        <div className="organizer-review-details">
-          {round === 1 ? (
-            <>
-              <div className="organizer-review-detail-card organizer-review-detail-wide">
-                <span>
-                  PROBLEM STATEMENT
-                </span>
-
-                <p>
-                  {submission?.problem_statement ||
-                    "No problem statement provided."}
-                </p>
-              </div>
-
-              <div className="organizer-review-detail-card organizer-review-detail-wide">
-                <span>
-                  PROJECT DESCRIPTION
-                </span>
-
-                <p>
-                  {submission?.project_description ||
-                    submission?.description ||
-                    submission?.problem_statement ||
-                    "No project description provided."}
-                </p>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="organizer-review-detail-card organizer-review-detail-wide">
-                <span>
-                  PROJECT DESCRIPTION
-                </span>
-
-                <p>
-                  {submission?.project_description ||
-                    submission?.description ||
-                    submission?.problem_statement ||
-                    "No project description provided."}
-                </p>
-              </div>
-
-              {submission?.github_url && (
-                <div className="organizer-review-detail-card">
-                  <span>
-                    GITHUB REPOSITORY
-                  </span>
-
-                  <a
-                    href={
-                      submission.github_url
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <FolderGit2 size={15} />
-                    Open GitHub repository ↗
-                  </a>
-                </div>
-              )}
-
-              {(submission?.demo_url ||
-                submission?.demo) && (
-                <div className="organizer-review-detail-card">
-                  <span>
-                    LIVE DEMO
-                  </span>
-
-                  <a
-                    href={
-                      submission.demo_url ||
-                      submission.demo
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <ArrowRight size={15} />
-                    Open live demo ↗
-                  </a>
-                </div>
-              )}
-
-              {(submission?.pdf_url ||
-                submission?.pdf_file_url ||
-                submission?.pdf) && (
-                <div className="organizer-review-detail-card organizer-review-detail-wide">
-                  <span>
-                    PDF / DOCUMENT
-                  </span>
-
-                  <a
-                    href={
-                      submission.pdf_url ||
-                      submission.pdf_file_url ||
-                      submission.pdf
-                    }
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    <Send size={15} />
-                    Open submitted PDF ↗
-                  </a>
-                </div>
-              )}
-            </>
-          )}
         </div>
 
         {/* GEMINI AI */}
@@ -2292,6 +2189,116 @@ function OrganizerSubmissionModal({
             )}
           </section>
         )}
+
+
+        {/* SUBMISSION DETAILS */}
+        <div className="organizer-review-details">
+          {round === 1 ? (
+            <>
+              <div className="organizer-review-detail-card organizer-review-detail-wide">
+                <span>
+                  PROBLEM STATEMENT
+                </span>
+
+                <p>
+                  {submission?.problem_statement ||
+                    "No problem statement provided."}
+                </p>
+              </div>
+
+              <div className="organizer-review-detail-card organizer-review-detail-wide">
+                <span>
+                  PROJECT DESCRIPTION
+                </span>
+
+                <p>
+                  {submission?.project_description ||
+                    submission?.description ||
+                    submission?.problem_statement ||
+                    "No project description provided."}
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="organizer-review-detail-card organizer-review-detail-wide">
+                <span>
+                  PROJECT DESCRIPTION
+                </span>
+
+                <p>
+                  {submission?.project_description ||
+                    submission?.description ||
+                    submission?.problem_statement ||
+                    "No project description provided."}
+                </p>
+              </div>
+
+              {submission?.github_url && (
+                <div className="organizer-review-detail-card">
+                  <span>
+                    GITHUB REPOSITORY
+                  </span>
+
+                  <a
+                    href={
+                      submission.github_url
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <FolderGit2 size={15} />
+                    Open GitHub repository ↗
+                  </a>
+                </div>
+              )}
+
+              {(submission?.demo_url ||
+                submission?.demo) && (
+                <div className="organizer-review-detail-card">
+                  <span>
+                    LIVE DEMO
+                  </span>
+
+                  <a
+                    href={
+                      submission.demo_url ||
+                      submission.demo
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ArrowRight size={15} />
+                    Open live demo ↗
+                  </a>
+                </div>
+              )}
+
+              {(submission?.pdf_url ||
+                submission?.pdf_file_url ||
+                submission?.pdf) && (
+                <div className="organizer-review-detail-card organizer-review-detail-wide">
+                  <span>
+                    PDF / DOCUMENT
+                  </span>
+
+                  <a
+                    href={
+                      submission.pdf_url ||
+                      submission.pdf_file_url ||
+                      submission.pdf
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Send size={15} />
+                    Open submitted PDF ↗
+                  </a>
+                </div>
+              )}
+            </>
+          )}
+        </div>
 
         {/* EXISTING ORGANIZER FEEDBACK */}
         {submission?.organizer_feedback && (
@@ -2726,11 +2733,39 @@ function Leaderboard({ hackathons, selectedId, setSelectedId }) {
   );
 }
 
-function ResultRequest({ hackathons, selectedId, setSelectedId }) {
+function ResultRequest({ hackathons: initialHackathons, selectedId, setSelectedId }) {
+  const [hackathons, setHackathons] = useState(initialHackathons || []);
+  const [loadingHackathons, setLoadingHackathons] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const selected = hackathons.find((h) => String(h.id) === String(selectedId));
+
+  const loadHackathons = async () => {
+    setLoadingHackathons(true);
+    setError("");
+    try {
+      const result = await apiFetch("/hackathons/organizer/my-hackathons");
+      const list = dedupeHackathons(arr(result, "hackathons", "events", "items", "data"));
+      setHackathons(list);
+      setSelectedId((current) => {
+        if (current && list.some((h) => String(h.id || h.hackathon_id || h.hackathon?.id) === String(current))) {
+          return current;
+        }
+        return String(list[0]?.id || list[0]?.hackathon_id || list[0]?.hackathon?.id || "");
+      });
+    } catch (e) {
+      setHackathons((current) => current.length ? current : (initialHackathons || []));
+      setError(e.message || "Unable to fetch organizer hackathons.");
+    } finally {
+      setLoadingHackathons(false);
+    }
+  };
+
+  useEffect(() => { loadHackathons(); }, []);
+
+  const selected = hackathons.find(
+    (h) => String(h.id || h.hackathon_id || h.hackathon?.id) === String(selectedId)
+  );
 
   const request = async () => {
     if (!selected) return;
@@ -2738,7 +2773,8 @@ function ResultRequest({ hackathons, selectedId, setSelectedId }) {
     setError("");
     setMessage("");
     try {
-      await apiFetch(`/result-requests/hackathons/${selected.id}`, { method: "POST" });
+      const id = selected.id || selected.hackathon_id || selected.hackathon?.id;
+      await apiFetch(`/result-requests/hackathons/${id}`, { method: "POST" });
       setMessage("Result publication request sent to Admin.");
     } catch (e) {
       setError(e.message);
@@ -2748,15 +2784,21 @@ function ResultRequest({ hackathons, selectedId, setSelectedId }) {
   };
 
   return (
-    <Panel eyebrow="Results" title="Request result approval" description="Send the real result publication request to the Admin approval queue." action={<Picker hackathons={hackathons} selectedId={selectedId} setSelectedId={setSelectedId}/>}>
+    <Panel
+      eyebrow="Results"
+      title="Request result approval"
+      description="Send the real result publication request to the Admin approval queue."
+      action={<Picker hackathons={hackathons} selectedId={selectedId} setSelectedId={setSelectedId} />}
+    >
+      {loadingHackathons && <div className="form-success">Loading your hackathons...</div>}
       {error && <div className="form-error">{error}</div>}
       {message && <div className="form-success">{message}</div>}
       <div className="approval-card">
-        <div><span>Hackathon</span><b>{selected?.title || "Select a hackathon"}</b></div>
-        <div><span>Current round</span><b>{selected?.current_round ?? "—"}</b></div>
-        <div><span>Status</span><b>{selected?.status ?? "—"}</b></div>
-        <button className="primary-btn" disabled={!selected || busy} onClick={request}>
-          {busy ? <LoaderCircle size={14} className="spin"/> : <Send size={14}/>}
+        <div><span>Hackathon</span><b>{selected?.title || selected?.name || selected?.hackathon?.title || "Select a hackathon"}</b></div>
+        <div><span>Current round</span><b>{selected?.current_round ?? selected?.hackathon?.current_round ?? "—"}</b></div>
+        <div><span>Status</span><b>{selected?.status || selected?.hackathon_status || selected?.hackathon?.status || "—"}</b></div>
+        <button className="primary-btn" disabled={!selected || busy || loadingHackathons} onClick={request}>
+          {busy ? <LoaderCircle size={14} className="spin"/> : <Send size={14}/>} 
           {busy ? "Sending..." : "Request Admin approval"}
         </button>
       </div>
