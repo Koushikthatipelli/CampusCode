@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { QRCodeSVG } from "qrcode.react";
 import "./PublicDigitalCard.css";
 
 const API_BASE_URL =
@@ -16,61 +15,72 @@ function value(...values) {
 
 function formatDate(date) {
   if (!date) return "—";
+
   const parsed = new Date(date);
   if (Number.isNaN(parsed.getTime())) return String(date);
 
-  return parsed.toLocaleDateString(undefined, {
+  return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
     month: "short",
     year: "numeric",
-  });
+  }).format(parsed);
 }
 
-function getInitial(name = "S") {
-  return String(name).trim().charAt(0).toUpperCase() || "S";
+function getInitials(name = "Student") {
+  const parts = String(name).trim().split(/\s+/).filter(Boolean);
+  return (
+    parts
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join("") || "ST"
+  );
 }
 
 function normalizeSkills(skills) {
   if (!skills) return [];
-  if (Array.isArray(skills)) return skills.filter(Boolean);
+
+  if (Array.isArray(skills)) {
+    return skills.filter(Boolean).slice(0, 8);
+  }
+
   if (typeof skills === "string") {
     return skills
       .split(",")
       .map((item) => item.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .slice(0, 8);
   }
+
   return [];
 }
 
-/* Same CampusCode mark used by StudentPanel.jsx */
-function CCMark({ small = false }) {
+function CampusCodeMark() {
   return (
-    <span
-      className={`public-cc-mark ${small ? "public-cc-mark-small" : ""}`}
-      aria-label="CampusCode logo"
-    >
-      <span />
-      <span />
-      <span />
+    <span className="public-card-brand-mark" aria-hidden="true">
+      <i />
+      <i />
+      <i />
     </span>
   );
 }
 
-function Brand({ compact = false }) {
+function CampusCodeLogo({ dark = true }) {
   return (
-    <div className={`public-brand ${compact ? "public-brand-compact" : ""}`}>
-      <CCMark small={compact} />
+    <div className={`public-card-logo ${dark ? "dark" : ""}`}>
+      <CampusCodeMark />
       <div>
-        <strong>CAMPUSCODE</strong>
-        <span>HACKATHON ARENA</span>
+        <strong>
+          CAMPUS<span>CODE</span>
+        </strong>
+        <small>HACKATHON ARENA</small>
       </div>
     </div>
   );
 }
 
-function PublicFooter() {
+function PageFooter() {
   return (
-    <footer className="public-id-footer-page">
+    <footer className="public-card-page-footer">
       <span>LEARN · BUILD · BELONG</span>
       <span>Verified by CampusCode</span>
     </footer>
@@ -111,8 +121,7 @@ export default function PublicDigitalCard() {
         if (!response.ok || !result.success || !result.verified) {
           setCard(null);
           setError(
-            result.message ||
-              "This Digital ID could not be verified."
+            result.message || "This CampusCode Digital ID could not be verified."
           );
           setLoading(false);
           return;
@@ -125,9 +134,7 @@ export default function PublicDigitalCard() {
 
         console.error("Public Digital Card Error:", err);
         setCard(null);
-        setError(
-          "Unable to connect to the CampusCode verification service."
-        );
+        setError("Unable to connect to the CampusCode verification service.");
         setLoading(false);
       }
     };
@@ -139,63 +146,53 @@ export default function PublicDigitalCard() {
     };
   }, [campusId]);
 
-  /* ----------------------------------------------------------
-     LOADING
-     ---------------------------------------------------------- */
   if (loading) {
     return (
-      <main className="public-id-page">
-        <div className="public-id-shell public-id-state-shell">
-          <Brand />
+      <main className="public-card-page">
+        <div className="public-card-page-shell public-card-state-shell">
+          <CampusCodeLogo />
 
-          <section className="public-id-state">
-            <div className="public-id-spinner" />
-            <strong>VERIFYING DIGITAL ID</strong>
-            <h1>Checking CampusCode ID.</h1>
+          <section className="public-card-state">
+            <div className="public-card-spinner" />
+            <span>IDENTITY / VERIFICATION</span>
+            <h1>Verifying CampusCode ID</h1>
             <p>
-              CampusCode is securely checking the participant
-              identity and card status.
+              Checking the participant identity and active Digital ID status.
             </p>
           </section>
 
-          <PublicFooter />
+          <PageFooter />
         </div>
       </main>
     );
   }
 
-  /* ----------------------------------------------------------
-     INVALID / INACTIVE
-     ---------------------------------------------------------- */
   if (!card) {
     return (
-      <main className="public-id-page">
-        <div className="public-id-shell public-id-state-shell">
-          <Brand />
+      <main className="public-card-page">
+        <div className="public-card-page-shell public-card-state-shell">
+          <CampusCodeLogo />
 
-          <section className="public-id-state public-id-state-error">
-            <div className="public-id-error-icon">!</div>
-            <span>VERIFICATION FAILED</span>
-            <h1>Digital ID not verified.</h1>
+          <section className="public-card-state public-card-state-error">
+            <div className="public-card-error-icon">!</div>
+            <span>IDENTITY / VERIFICATION</span>
+            <h1>Digital ID not verified</h1>
             <p>
               {error ||
-                "This Digital ID is invalid or inactive."}
+                "This Digital ID is invalid, inactive, or no longer available."}
             </p>
 
-            <div className="public-id-requested">
-              <small>REQUESTED CAMPUS ID</small>
+            <div className="public-card-requested-id">
+              <small>REQUESTED CAMPUSCODE ID</small>
               <strong>{campusId || "—"}</strong>
             </div>
 
-            <Link
-              className="public-id-back"
-              to="/"
-            >
+            <Link to="/" className="public-card-home-button">
               GO TO CAMPUSCODE
             </Link>
           </section>
 
-          <PublicFooter />
+          <PageFooter />
         </div>
       </main>
     );
@@ -204,210 +201,192 @@ export default function PublicDigitalCard() {
   const participant = card.participant || {};
   const statistics = card.statistics || {};
   const verification = card.verification || {};
-  const campusCodeId = value(
-    participant.campus_id,
-    campusId
-  );
-  const initials = getInitial(participant.name);
-  const publicUrl = `${window.location.origin}/u/${encodeURIComponent(
-    campusCodeId
-  )}`;
 
+  const studentName = value(participant.name, "CampusCode Student");
+  const campusCodeId = value(participant.campus_id, campusId);
+  const initials = getInitials(studentName);
   const skills = normalizeSkills(participant.skills);
 
+  const active = verification.status
+    ? String(verification.status).toUpperCase() === "ACTIVE"
+    : verification.verified !== false;
+
   return (
-    <main className="public-id-page">
-      <div className="public-id-shell">
-        <header className="public-id-page-brand">
-          <Brand />
+    <main className="public-card-page">
+      <div className="public-card-page-shell">
+        {/* Main heading */}
+        <header className="public-card-page-heading">
+          <CampusCodeLogo />
+          <div className="public-card-heading-copy">
+            <span>IDENTITY / PUBLIC VERIFICATION</span>
+            <h1>CAMPUSCODE</h1>
+            <p>Student Digital ID</p>
+          </div>
         </header>
 
-        <div className="public-id-layout">
-          {/* ==================================================
-              PHYSICAL-STYLE DIGITAL ID CARD
-              ================================================== */}
-          <section className="public-id-card">
-            <div className="public-id-card-accent" />
+        <div className="public-card-verified-heading">
+          <span className="public-card-verified-dot" />
+          <strong>{active ? "VERIFIED PARTICIPANT" : "ID INACTIVE"}</strong>
+          <span>{active ? "Valid CampusCode Digital ID" : "Verification requires attention"}</span>
+        </div>
 
-            <div className="public-id-top">
-              <Brand />
-
-              <div className="public-id-verified-label">
-                <i />
-                VERIFIED
+        {/* Layout 1: attached ID card + details */}
+        <section className="public-card-layout-one">
+          <div className="public-id-card-stage">
+            {/* Attached ID tag */}
+            <div className="public-id-lanyard" aria-hidden="true">
+              <div className="public-id-lanyard-strap">
+                <span>CAMPUSCODE</span>
+              </div>
+              <div className="public-id-lanyard-clip">
+                <span />
               </div>
             </div>
 
-            <div className="public-id-card-title-row">
-              <span>STUDENT DIGITAL ID</span>
-              <small>CC / IDENTITY / 01</small>
+            <article className="public-id-card-real" aria-label="CampusCode student digital ID card">
+              <div className="public-id-card-top-line" />
+
+              <div className="public-id-card-header">
+                <CampusCodeLogo />
+                <span className="public-id-card-type">STUDENT ID</span>
+              </div>
+
+              <div className="public-id-card-rule" />
+
+              <div className="public-id-card-identity">
+                <div className="public-id-photo">
+                  {participant.avatar_url ? (
+                    <img
+                      src={participant.avatar_url}
+                      alt={`${studentName} profile`}
+                    />
+                  ) : (
+                    <span>{initials}</span>
+                  )}
+                </div>
+
+                <div className="public-id-card-name-block">
+                  <span>STUDENT</span>
+                  <h2>{studentName}</h2>
+                  <strong>{campusCodeId}</strong>
+                </div>
+
+                <div className="public-id-card-active">
+                  <span>{active ? "ACTIVE" : "INACTIVE"}</span>
+                  <b>{active ? "✓" : "!"}</b>
+                </div>
+              </div>
+
+              <div className="public-id-card-fields">
+                <div>
+                  <span>CAMPUSCODE ID</span>
+                  <strong>{campusCodeId}</strong>
+                </div>
+                <div>
+                  <span>ROLE</span>
+                  <strong>STUDENT</strong>
+                </div>
+                <div>
+                  <span>MEMBER SINCE</span>
+                  <strong>{formatDate(participant.joined_at)}</strong>
+                </div>
+              </div>
+
+              {skills.length > 0 && (
+                <div className="public-id-card-skills">
+                  <span>SKILLS</span>
+                  <div>
+                    {skills.map((skill, index) => (
+                      <b key={`${skill}-${index}`}>{skill}</b>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="public-id-card-bottom">
+                <div>
+                  <strong>CAMPUSCODE DIGITAL ID</strong>
+                  <span>VALID PARTICIPANT CREDENTIAL</span>
+                </div>
+                <div className="public-id-card-mini-check">
+                  <span>✓</span>
+                  <small>VERIFIED</small>
+                </div>
+              </div>
+
+              <div className="public-id-card-footer">
+                <span>LEARN · BUILD · BELONG</span>
+                <span>CC / IDENTITY</span>
+              </div>
+            </article>
+          </div>
+
+          {/* Public details outside the physical card */}
+          <aside className="public-card-details-panel">
+            <div className="public-card-details-kicker">VERIFIED STUDENT</div>
+            <h2>Participant details</h2>
+            <p>
+              This CampusCode Digital ID was verified from the public CampusCode
+              identity service. Sensitive account information is intentionally hidden.
+            </p>
+
+            <div className="public-card-verification-box">
+              <div className="public-card-verification-check">✓</div>
+              <div>
+                <strong>Verified by CampusCode</strong>
+                <span>{active ? "Active Digital ID" : "Inactive Digital ID"}</span>
+              </div>
             </div>
 
-            <div className="public-id-main">
-              <div className="public-id-avatar">
-                {initials}
+            <div className="public-card-detail-list">
+              <div>
+                <span>NAME</span>
+                <strong>{studentName}</strong>
               </div>
-
-              <div className="public-id-person">
-                <span>STUDENT</span>
-                <h1>{value(participant.name)}</h1>
-                <p>{campusCodeId}</p>
-              </div>
-
-              <div className="public-id-status-stamp">
-                <span>ACTIVE</span>
-                <strong>✓</strong>
-              </div>
-            </div>
-
-            <div className="public-id-data">
               <div>
                 <span>CAMPUSCODE ID</span>
                 <strong>{campusCodeId}</strong>
               </div>
-
               <div>
                 <span>ROLE</span>
                 <strong>STUDENT</strong>
               </div>
-
               <div>
                 <span>ACCOUNT</span>
-                <strong>ACTIVE</strong>
+                <strong>{active ? "ACTIVE" : "INACTIVE"}</strong>
               </div>
-            </div>
-
-            {skills.length > 0 && (
-              <div className="public-id-skills">
-                <span>SKILLS</span>
-                <div>
-                  {skills.slice(0, 6).map((skill, index) => (
-                    <b key={`${skill}-${index}`}>{skill}</b>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="public-id-card-bottom">
-              <div className="public-id-qr-wrap">
-                <QRCodeSVG
-                  value={publicUrl}
-                  size={184}
-                  level="H"
-                  bgColor="#ffffff"
-                  fgColor="#0a0a0a"
-                  includeMargin
-                />
-                <span>SCAN TO VERIFY DIGITAL ID</span>
-              </div>
-
-              <div className="public-id-card-side-copy">
-                <strong>CAMPUSCODE</strong>
-                <span>VERIFIED PARTICIPANT</span>
-                <small>
-                  This card is digitally issued by the
-                  CampusCode platform.
-                </small>
-              </div>
-            </div>
-
-            <div className="public-id-card-footer">
-              <span>LEARN · BUILD · BELONG</span>
-              <span>{campusCodeId}</span>
-            </div>
-          </section>
-
-          {/* ==================================================
-              VERIFICATION INFORMATION
-              ================================================== */}
-          <section className="public-id-info">
-            <span>IDENTITY / VERIFIED ACCOUNT</span>
-
-            <h2>
-              One ID.
-              <br />
-              Your CampusCode.
-            </h2>
-
-            <p>
-              This public verification page confirms that this
-              Digital ID belongs to an active CampusCode student.
-              Only limited public profile information is shown.
-            </p>
-
-            <div className="public-id-check">
-              <i />
-              <strong>
-                {String(
-                  verification.status || "ACTIVE"
-                ).toUpperCase()}
-              </strong>
-              <span>CampusCode Digital ID</span>
-            </div>
-
-            <div className="public-id-meta">
               <div>
                 <span>MEMBER SINCE</span>
-                <strong>
-                  {formatDate(participant.joined_at)}
-                </strong>
-              </div>
-
-              <div>
-                <span>HACKATHONS</span>
-                <strong>
-                  {statistics.total_hackathons ?? 0}
-                </strong>
-              </div>
-
-              <div>
-                <span>TEAMS</span>
-                <strong>
-                  {statistics.total_teams ?? 0}
-                </strong>
-              </div>
-
-              <div>
-                <span>COMPLETED</span>
-                <strong>
-                  {statistics.completed_hackathons ?? 0}
-                </strong>
+                <strong>{formatDate(participant.joined_at)}</strong>
               </div>
             </div>
 
-            <div className="public-id-verification-box">
-              <div className="public-id-verification-icon">
-                ✓
+            <div className="public-card-stat-grid">
+              <div>
+                <strong>{statistics.total_hackathons ?? 0}</strong>
+                <span>Hackathons</span>
               </div>
               <div>
-                <strong>Verified by CampusCode</strong>
-                <span>
-                  Digital identity is currently active.
-                </span>
+                <strong>{statistics.total_teams ?? 0}</strong>
+                <span>Teams</span>
+              </div>
+              <div>
+                <strong>{statistics.completed_hackathons ?? 0}</strong>
+                <span>Completed</span>
               </div>
             </div>
 
-            <div className="public-id-actions">
-              <Link
-                to="/"
-                className="public-id-primary"
-              >
-                CAMPUSCODE HOME
-              </Link>
+            <div className="public-card-security-note">
+              <span>🔒</span>
+              <p>
+                No email, password, private account data, or authentication
+                information is displayed on this public page.
+              </p>
             </div>
-          </section>
-        </div>
+          </aside>
+        </section>
 
-        <div className="public-id-security">
-          <span>🔒</span>
-          <p>
-            No email, password, private account data, or
-            authentication information is exposed through this
-            public verification page.
-          </p>
-        </div>
-
-        <PublicFooter />
+        <PageFooter />
       </div>
     </main>
   );

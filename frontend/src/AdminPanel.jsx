@@ -2887,6 +2887,28 @@ function SystemBlueprintPage() {
 
   useEffect(() => { load(); }, []);
 
+  useEffect(() => {
+    if (!focusMode) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setSelectedNode(null);
+        setNodeDetails(null);
+        setFocusMode(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [focusMode]);
+
   const openNode = async (node, enter = false) => {
     if (!node) { setSelectedNode(null); setNodeDetails(null); return; }
     if (enter && node.children?.length) { enterBlueprint(node); return; }
@@ -2964,8 +2986,41 @@ function SystemBlueprintPage() {
 
   if (loading) return <Loading />;
 
+  if (focusMode) {
+    return (
+      <div className="admin-blueprint-fullscreen" role="dialog" aria-modal="true" aria-label="CampusCode full screen system blueprint">
+        <button
+          type="button"
+          className="admin-blueprint-fullscreen-back"
+          onClick={() => {
+            setSelectedNode(null);
+            setNodeDetails(null);
+            setFocusMode(false);
+          }}
+        >
+          <ArrowLeft size={16} />
+          BACK
+        </button>
+
+        <AdminBlueprintScene
+          rootId={rootId}
+          selectedNode={null}
+          onNodeClick={() => {}}
+          query={query}
+          layer={layer}
+          focusMode
+          zoom={zoom}
+          onZoomIn={() => setZoom((z) => Math.min(1.25, Number((z + .1).toFixed(2))))}
+          onZoomOut={() => setZoom((z) => Math.max(.8, Number((z - .1).toFixed(2))))}
+          onReset={() => setZoom(1)}
+          onToggleFocus={() => setFocusMode(false)}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={`admin-system-blueprint-page ${focusMode ? "blueprint-focus-page" : ""}`}>
+    <div className="admin-system-blueprint-page">
       <PageTitle
         eyebrow="SYSTEM / ARCHITECTURE"
         title={<>CampusCode <span>system architecture.</span></>}
@@ -3008,7 +3063,11 @@ function SystemBlueprintPage() {
           onZoomIn={() => setZoom((z) => Math.min(1.25, Number((z + .1).toFixed(2))))}
           onZoomOut={() => setZoom((z) => Math.max(.8, Number((z - .1).toFixed(2))))}
           onReset={() => setZoom(1)}
-          onToggleFocus={() => setFocusMode((x) => !x)}
+          onToggleFocus={() => {
+            setSelectedNode(null);
+            setNodeDetails(null);
+            setFocusMode((x) => !x);
+          }}
         />
 
         <div className="admin-blueprint-path"><span>PATH</span><b>CAMPUSCODE</b><ChevronRight size={12} /> <b>{root.name}</b>{selectedNode && <><ChevronRight size={12} /><b>{selectedNode.name}</b></>}</div>
