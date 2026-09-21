@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AlertCircle,
   ArrowRight,
@@ -90,6 +90,41 @@ const dateText = (value) => {
 const statusClass = (status = "") =>
   String(status).toUpperCase().replace(/\s+/g, "-");
 
+const COMPLETED_STATUSES = new Set([
+  "COMPLETED",
+  "COMPLETE",
+  "FINISHED",
+  "CLOSED",
+  "ARCHIVED",
+]);
+
+const isCompletedStatus = (status) =>
+  COMPLETED_STATUSES.has(String(status || "").trim().toUpperCase());
+
+const dedupeHackathons = (items = []) => {
+  const map = new Map();
+
+  for (const item of Array.isArray(items) ? items : []) {
+    const id = String(item?.id || item?.hackathon_id || "");
+    if (!id) continue;
+
+    const existing = map.get(id);
+    map.set(
+      id,
+      existing
+        ? { ...existing, ...item }
+        : item
+    );
+  }
+
+  return [...map.values()];
+};
+
+const isHackathonCompleted = (hackathon) =>
+  isCompletedStatus(hackathon?.status) ||
+  Number(hackathon?.current_round) === 4 ||
+  Boolean(hackathon?.completed_at || hackathon?.completedAt);
+
 const NAV = [
   ["dashboard", "Dashboard", LayoutDashboard],
   ["hackathons", "My Hackathons", Trophy],
@@ -134,7 +169,7 @@ function OrganizerPanel({
     setError("");
     try {
       const data = await apiFetch("/dashboard/organizer");
-      const list = arr(data, "hackathons", "events", "data");
+      const list = dedupeHackathons(arr(data, "hackathons", "events", "data"));
       setDashboard(data);
       setHackathons(list);
       setSelectedId((current) => {
@@ -536,14 +571,16 @@ function AlertBox({ type, message, onClose }) {
 }
 
 function Picker({ hackathons, selectedId, setSelectedId }) {
+  const uniqueHackathons = dedupeHackathons(hackathons);
+
   return (
     <select
       className="org-select compact"
       value={selectedId}
       onChange={(e) => setSelectedId(e.target.value)}
     >
-      {!hackathons.length && <option value="">No hackathons</option>}
-      {hackathons.map((h) => (
+      {!uniqueHackathons.length && <option value="">No hackathons</option>}
+      {uniqueHackathons.map((h) => (
         <option key={h.id} value={h.id}>
           {h.title || h.name || `Hackathon ${h.id}`}
         </option>
@@ -695,8 +732,19 @@ function Hackathons({
       "Hackathon published. Registration is now open."
     );
 
-  const status = (id, value) =>
-    onRun(
+  const status = (id, value) => {
+    const target = hackathons.find((h) => String(h.id) === String(id));
+
+    if (isHackathonCompleted(target)) {
+      return onRun(
+        async () => {
+          throw new Error("This hackathon is completed and can no longer be moved to another status.");
+        },
+        null
+      );
+    }
+
+    return onRun(
       () =>
         apiFetch(`/hackathons/${id}/status`, {
           method: "PATCH",
@@ -704,6 +752,7 @@ function Hackathons({
         }),
       `Hackathon status changed to ${value}.`
     );
+  };
 
   const remove = async (h) => {
     if (!window.confirm(`Delete "${h.title}"?\n\nThis action cannot be undone.`)) return;
@@ -1057,7 +1106,7 @@ function Rounds({ hackathon, hackathons, selectedId, setSelectedId, onRefresh })
 
           <div className="round-save-row">
             <span>Save round names before operating the lifecycle.</span>
-            <button className="primary-btn" disabled={!!busy} onClick={save}>
+            <button className="primary-btn" disabled={!!busy || isHackathonCompleted(hackathon)} onClick={save}>
               {busy === "save" ? <LoaderCircle size={14} className="spin"/> : <Settings2 size={14}/>}
               Save configuration
             </button>
@@ -1501,7 +1550,7 @@ function OrganizerSubmissions({
         body: JSON.stringify({
           decision,
           score,
-          feedback: reviewFeedback.trim(),
+          organizer_feedback: reviewFeedback.trim(),
         }),
       });
 
@@ -2310,7 +2359,7 @@ function Notifications() {
         apiFetch("/hackathons/organizer/my-hackathons"),
       ]);
       setItems(arr(notifications, "notifications", "data"));
-      setHackathons(arr(events, "hackathons", "events", "data"));
+      setHackathons(dedupeHackathons(arr(events, "hackathons", "events", "data")));
     } catch (e) {
       setError(e.message);
     } finally {

@@ -965,3 +965,72 @@ body,
 .campuscode-panel-loader .cc-loader-subtext {
   color: rgba(255,255,255,.38) !important;
 }
+
+
+/* -------------------------------------------------------------------------- */
+/* CampusCode lifecycle + readability fixes                                  */
+/* -------------------------------------------------------------------------- */
+
+.round-banner-completed {
+  border-color: rgba(159, 197, 255, .22);
+  background: linear-gradient(135deg, rgba(120, 170, 255, .06), rgba(35, 243, 154, .025));
+}
+
+.round-completed-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 128px;
+  padding: 10px 13px;
+  border: 1px solid rgba(159, 197, 255, .28);
+  border-radius: 12px;
+  color: #b9d4ff;
+  background: rgba(120, 170, 255, .08);
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  box-shadow: 0 0 28px rgba(120, 170, 255, .06);
+}
+
+.workspace-head-completed {
+  border-color: rgba(159, 197, 255, .2) !important;
+  background: rgba(120, 170, 255, .035) !important;
+}
+
+.workspace-head-completed > div:first-child > span {
+  color: #b9d4ff !important;
+}
+
+.workspace-list em {
+  font-style: normal;
+}
+
+@media (min-width: 900px) {
+  .org-nav-item,
+  .org-signout {
+    font-size: 13.5px;
+  }
+
+  .org-search,
+  .org-breadcrumb {
+    font-size: 12px;
+  }
+
+  .panel-head h2 {
+    font-size: 25px;
+  }
+
+  .panel-head p,
+  .dashboard-intro p,
+  .current-event p,
+  .hack-description,
+  .project-card p,
+  .submission-main > p {
+    font-size: 12.5px;
+  }
+
+  .table-wrap td {
+    font-size: 12.5px;
+  }
+}

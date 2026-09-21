@@ -60,6 +60,44 @@ function dedupeHackathons(items = []) {
   return [...map.values()];
 }
 
+const COMPLETED_STATUSES = new Set(["COMPLETED", "COMPLETE", "FINISHED", "CLOSED", "ARCHIVED"]);
+
+function isCompletedStatus(status) {
+  return COMPLETED_STATUSES.has(String(status || "").trim().toUpperCase());
+}
+
+function isCompletedRecord(record) {
+  if (!record) return false;
+  return isCompletedStatus(record.status) || isCompletedStatus(record.round_status) ||
+    Boolean(record.completed_at || record.completedAt);
+}
+
+function getRoundRecord(payload, roundNumber) {
+  const key = `round${roundNumber}`;
+  return payload?.round || payload?.[key] || payload?.data?.round || payload?.data?.[key] || {};
+}
+
+function isRoundCompleted(payload, roundNumber) {
+  const round = getRoundRecord(payload, roundNumber);
+  if (isCompletedRecord(round)) return true;
+  if (roundNumber === 3) {
+    const hackathon = payload?.hackathon || payload?.data?.hackathon || {};
+    return isCompletedRecord(hackathon) || Number(hackathon?.current_round) === 4;
+  }
+  return false;
+}
+
+function CompletionStamp({ round, compact = false }) {
+  const label = round ? `ROUND ${round}` : "HACKATHON";
+  return (
+    <div className={`student-completed-stamp ${compact ? "compact" : ""}`} aria-label={`${label} Completed`}>
+      <span>CAMPUSCODE</span>
+      <strong>{label}</strong>
+      <b>COMPLETED ✓</b>
+    </div>
+  );
+}
+
 function value(...values) {
   return values.find((item) => item !== undefined && item !== null && item !== "") ?? "—";
 }
@@ -247,7 +285,7 @@ function DashboardDiscover({ navigate }) {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     Promise.allSettled([apiFetch("/hackathons"), apiFetch("/student/hackathons/my-hackathons")]).then(([all, mine]) => {
-      if (all.status === "fulfilled") setItems(unwrapList(all.value, ["hackathons", "events", "items"]).slice(0, 3));
+      if (all.status === "fulfilled") setItems(dedupeHackathons(unwrapList(all.value, ["hackathons", "events", "items"])).slice(0, 3));
       if (mine.status === "fulfilled") setJoined(new Set(unwrapList(mine.value, ["hackathons", "registrations", "items", "data"]).map((x) => String(x.hackathon_id || x.hackathon?.id || x.id || ""))));
     }).finally(() => setLoading(false));
   }, []);
@@ -279,7 +317,7 @@ function HackathonsPage({ onOpen, onJoined }) {
         apiFetch("/student/hackathons/my-hackathons"),
       ]);
       if (allResult.status === "rejected") throw allResult.reason;
-      const all = unwrapList(allResult.value, ["hackathons", "events", "items"]);
+      const all = dedupeHackathons(unwrapList(allResult.value, ["hackathons", "events", "items"]));
       const mine = mineResult.status === "fulfilled"
         ? unwrapList(mineResult.value, ["hackathons", "registrations", "items", "data"])
         : [];
@@ -357,9 +395,11 @@ function RegistrationsPage({ onOpen }) {
     setLoading(true); setError("");
     try {
       const result = await apiFetch("/student/hackathons/my-hackathons");
-      const registrations = Array.isArray(result?.hackathons)
-        ? result.hackathons
-        : unwrapList(result, ["hackathons", "registrations", "events", "items"]);
+      const registrations = dedupeHackathons(
+        Array.isArray(result?.hackathons)
+          ? result.hackathons
+          : unwrapList(result, ["hackathons", "registrations", "events", "items"])
+      );
       setItems(registrations);
     } catch (err) {
       setError(err.message);
@@ -1287,11 +1327,12 @@ function RuleBotPage() {
 }
 
 function StudentHackathonSelector({ value: selectedValue, onChange, items }) {
+  const uniqueItems = dedupeHackathons(items);
   return (
     <select className="student-data-select" value={selectedValue} onChange={(e) => onChange(e.target.value)}>
       <option value="">Choose a registered hackathon</option>
-      {items.map((item) => {
-        const id = item.hackathon_id || item.id;
+      {uniqueItems.map((item) => {
+        const id = item.hackathon_id || item.id || item.hackathon?.id;
         return <option key={id} value={id}>{value(item.hackathon?.title, item.title, item.name, item.hackathon_name)}</option>;
       })}
     </select>
@@ -1361,7 +1402,7 @@ function StudentMyTeamPage() {
 
   const loadRegistrations = async () => {
     const result = await apiFetch("/student/hackathons/my-hackathons");
-    const items = unwrapList(result, ["hackathons", "registrations", "events", "data"]);
+    const items = dedupeHackathons(unwrapList(result, ["hackathons", "registrations", "events", "data"]));
     setRegistrations(items);
     return items;
   };
@@ -1937,7 +1978,7 @@ function StudentRoundOnePage() {
 
   useEffect(() => {
     apiFetch("/student/hackathons/my-hackathons").then((result) => {
-      const list = unwrapList(result, ["hackathons", "data"]);
+      const list = dedupeHackathons(unwrapList(result, ["hackathons", "data"]));
       setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id));
     }).catch((err) => setError(err.message)).finally(() => setLoading(false));
   }, []);
@@ -1949,7 +1990,11 @@ function StudentRoundOnePage() {
   const submission = data?.submission || null;
   const currentRound = Number(hackathon.current_round ?? round.current_round ?? data?.current_round ?? 0);
   const roundStatus = String(round.status || "").toUpperCase();
-  const accessible = data?.accessible === true || round?.accessible === true || (roundStatus === "LIVE" && currentRound === 1);
+  const roundCompleted = isRoundCompleted(data, 1) || isCompletedStatus(roundStatus);
+  const hackathonCompleted = isCompletedRecord(hackathon) || Number(hackathon?.current_round) === 4;
+  const accessible = !roundCompleted && !hackathonCompleted && (
+    data?.accessible === true || round?.accessible === true || (roundStatus === "LIVE" && currentRound === 1)
+  );
   const submitted = Boolean(submission);
   const canSubmit = accessible && Boolean(team) && !submitted && !saving;
 
@@ -1973,8 +2018,9 @@ function StudentRoundOnePage() {
       <PageHeading eyebrow="BUILD / ROUND 01" title="PROBLEM STATEMENT." text="Submit your team's problem statement when Round 1 is live." />
       {error && <div className="student-inline-error">{error}</div>}
       {message && <div className="student-inline-success">{message}</div>}
-      <div className="student-feature-grid student-round-workspace">
-        <div className="student-feature-card">
+      <div className={`student-feature-grid student-round-workspace ${roundCompleted || hackathonCompleted ? "student-round-completed-workspace" : ""}`}>
+        <div className="student-feature-card student-round-status-card">
+          {(roundCompleted || hackathonCompleted) && <CompletionStamp round={hackathonCompleted ? null : 1} />}
           <span className="student-feature-label">HACKATHON WORKSPACE</span>
           <h2>{value(hackathon.title, "Hackathon")}</h2>
           <div className="student-round-status-row"><span className={`student-round-status ${roundStatus === "LIVE" ? "live" : ""}`}>{roundStatus || "NOT AVAILABLE"}</span><span>{currentRound ? `CURRENT ROUND ${currentRound}` : "ROUND STATUS"}</span></div>
@@ -1983,7 +2029,7 @@ function StudentRoundOnePage() {
         </div>
         <div className="student-feature-card student-round-form-card">
           <div className="student-feature-card-head"><div><span className="student-feature-label">ROUND 1 SUBMISSION</span><h2>What are you solving?</h2><p>Explain the problem, who experiences it, and what your team plans to solve.</p></div><div className="student-feature-icon"><Send size={18} /></div></div>
-          {!team ? <div className="student-round-notice warning"><strong>TEAM REQUIRED</strong><span>Create or join a team before submitting Round 1.</span></div> : submitted ? <div className="student-round-submitted"><CheckCircle2 size={18} /><div><strong>SUBMITTED SUCCESSFULLY</strong><span>{submission.status || "SUBMITTED"}</span></div></div> : !accessible ? <div className="student-round-notice"><strong>ROUND 1 IS LOCKED</strong><span>{round.reason === "ROUND_COMPLETED" ? "Round 1 has been completed." : "The organizer has not opened Round 1 yet."}</span></div> : (
+          {!team ? <div className="student-round-notice warning"><strong>TEAM REQUIRED</strong><span>Create or join a team before submitting Round 1.</span></div> : submitted ? <div className="student-round-submitted"><CheckCircle2 size={18} /><div><strong>SUBMITTED SUCCESSFULLY</strong><span>{submission.status || "SUBMITTED"}</span></div></div> : roundCompleted || hackathonCompleted ? <div className="student-round-notice student-round-completed-notice"><strong>{hackathonCompleted ? "HACKATHON COMPLETED" : "ROUND 1 COMPLETED"}</strong><span>{hackathonCompleted ? "This hackathon has finished. Round 1 is now read-only." : "Round 1 has been completed. New submissions are closed."}</span></div> : !accessible ? <div className="student-round-notice"><strong>ROUND 1 IS LOCKED</strong><span>{round.reason === "ROUND_COMPLETED" ? "Round 1 has been completed." : "The organizer has not opened Round 1 yet."}</span></div> : (
             <div className="student-round-form"><div className="student-form-label-row"><label>PROBLEM STATEMENT *</label><span>{statement.length} / 5000</span></div><textarea value={statement} onChange={(e) => setStatement(e.target.value.slice(0, 5000))} rows={10} maxLength={5000} disabled={!canSubmit} placeholder="Example: Students struggle to discover relevant hackathons and form teams with complementary skills..." /><div className="student-form-actions"><span>Minimum 20 characters. Once submitted, your team cannot submit Round 1 again.</span><button className="student-primary-btn" disabled={!canSubmit || statement.trim().length < 20} onClick={() => setShowAgreement(true)}>{saving ? "SUBMITTING..." : "SUBMIT ROUND 1 ↗"}</button></div></div>
           )}
         </div>
@@ -1996,23 +2042,35 @@ function StudentRoundOnePage() {
 function StudentRoundTwoPage() {
   const [items, setItems] = useState([]); const [selected, setSelected] = useState(""); const [data, setData] = useState(null); const [github, setGithub] = useState(""); const [pdf, setPdf] = useState(""); const [loading, setLoading] = useState(true); const [loadingStatus, setLoadingStatus] = useState(false); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const [message, setMessage] = useState("");
   const loadStatus = async (id) => { if (!id) return; setLoadingStatus(true); setError(""); try { const result = await apiFetch(`/student/round2/hackathons/${id}`); const payload = result; setData(payload); setGithub(payload?.submission?.github_url || ""); setPdf(payload?.submission?.pdf_url || ""); } catch (err) { setData(null); setError(err.message || "Failed to fetch Round 2 status"); } finally { setLoadingStatus(false); } };
-  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((result) => { const list = unwrapList(result, ["hackathons", "data"]); setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id)); }).catch((err) => setError(err.message)).finally(() => setLoading(false)); }, []);
+  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((result) => { const list = dedupeHackathons(unwrapList(result, ["hackathons", "data"])); setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id)); }).catch((err) => setError(err.message)).finally(() => setLoading(false)); }, []);
   useEffect(() => { setMessage(""); loadStatus(selected); }, [selected]);
-  const submission = data?.submission || null; const accessible = data?.accessible === true; const submitted = Boolean(submission);
+  const submission = data?.submission || null;
+  const roundRecord = getRoundRecord(data, 2);
+  const roundStatus = String(roundRecord?.status || data?.round_status || "").toUpperCase();
+  const roundCompleted = isRoundCompleted(data, 2) || isCompletedStatus(roundStatus);
+  const hackathonCompleted = isCompletedRecord(data?.hackathon) || Number(data?.hackathon?.current_round) === 4;
+  const accessible = !roundCompleted && !hackathonCompleted && data?.accessible === true;
+  const submitted = Boolean(submission);
   const submit = async () => { if (!selected) return setError("Select a hackathon first."); if (!github.trim()) return setError("GitHub URL is required."); if (!pdf.trim()) return setError("Google Drive PDF URL is required by the current backend."); setSaving(true); setError(""); setMessage(""); try { const result = await apiFetch(`/student/round2/hackathons/${selected}/submit`, { method: "POST", body: JSON.stringify({ github_url: github.trim(), pdf_url: pdf.trim() }) }); if (result?.submission) setData((current) => ({ ...(current || {}), submission: result.submission })); setMessage("Round 2 project submitted successfully."); await loadStatus(selected); } catch (err) { setError(err.message || "Failed to submit Round 2"); } finally { setSaving(false); } };
   if (loading) return <LoadingState label="Loading Round 2..." />;
-  return <section><PageHeading eyebrow="BUILD / ROUND 02" title="PROJECT SUBMISSION." text="Submit your GitHub repository and Google Drive PDF when Round 2 is live." />{error && <div className="student-inline-error">{error}</div>}{message && <div className="student-inline-success">{message}</div>}<div className="student-feature-grid student-round-workspace"><div className="student-feature-card"><span className="student-feature-label">ROUND 2 STATUS</span><StudentHackathonSelector value={selected} onChange={setSelected} items={items} />{loadingStatus ? <LoadingState label="Loading round status..." /> : <div className="student-info-list"><div><span>ROUND 2 ACCESS</span><strong>{accessible ? "OPEN" : value(data?.message, "LOCKED")}</strong></div><div><span>SUBMISSION</span><strong>{value(submission?.status, "Not submitted")}</strong></div><div><span>DECISION</span><strong>{value(data?.decision?.decision, "Pending")}</strong></div><div className="student-feedback-row"><span>ORGANIZER FEEDBACK</span><strong>{value(data?.decision?.organizer_feedback, "No feedback yet")}</strong></div></div>}</div><div className="student-feature-card student-round-form-card"><div className="student-feature-card-head"><div><span className="student-feature-label">IMPLEMENTATION</span><h2>Submit your project</h2><p>GitHub is required. The current backend also requires a Google Drive PDF.</p></div><div className="student-feature-icon"><FolderGit2 size={18} /></div></div>{submitted ? <div className="student-round-submitted"><CheckCircle2 size={18} /><div><strong>ROUND 2 SUBMITTED</strong><span>{submission.status || "SUBMITTED"}</span></div></div> : !accessible ? <div className="student-round-notice"><strong>ROUND 2 IS LOCKED</strong><span>Your Round 1 team decision must be selected and Round 2 must be active.</span></div> : <div className="student-round-form"><label>GITHUB REPOSITORY URL *</label><div className="student-input-icon"><LinkIcon size={15} /><input value={github} onChange={(e) => setGithub(e.target.value)} placeholder="https://github.com/username/project" /></div><label>GOOGLE DRIVE PDF URL *</label><div className="student-input-icon"><ExternalLink size={15} /><input value={pdf} onChange={(e) => setPdf(e.target.value)} placeholder="https://drive.google.com/file/d/.../view" /></div><button className="student-primary-btn" disabled={saving || !github.trim() || !pdf.trim()} onClick={submit}>{saving ? "SUBMITTING..." : "SUBMIT ROUND 2 ↗"}</button></div>}</div></div></section>;
+  return <section><PageHeading eyebrow="BUILD / ROUND 02" title="PROJECT SUBMISSION." text="Submit your GitHub repository and Google Drive PDF when Round 2 is live." />{error && <div className="student-inline-error">{error}</div>}{message && <div className="student-inline-success">{message}</div>}<div className={`student-feature-grid student-round-workspace ${roundCompleted || hackathonCompleted ? "student-round-completed-workspace" : ""}`}><div className="student-feature-card student-round-status-card">{(roundCompleted || hackathonCompleted) && <CompletionStamp round={hackathonCompleted ? null : 2} />}<span className="student-feature-label">ROUND 2 STATUS</span><StudentHackathonSelector value={selected} onChange={setSelected} items={items} />{loadingStatus ? <LoadingState label="Loading round status..." /> : <div className="student-info-list"><div><span>ROUND 2 ACCESS</span><strong>{roundCompleted ? "COMPLETED" : accessible ? "OPEN" : value(data?.message, "LOCKED")}</strong></div><div><span>SUBMISSION</span><strong>{value(submission?.status, "Not submitted")}</strong></div><div><span>DECISION</span><strong>{value(data?.decision?.decision, "Pending")}</strong></div><div className="student-feedback-row"><span>ORGANIZER FEEDBACK</span><strong>{value(data?.decision?.organizer_feedback, "No feedback yet")}</strong></div></div>}</div><div className="student-feature-card student-round-form-card"><div className="student-feature-card-head"><div><span className="student-feature-label">IMPLEMENTATION</span><h2>Submit your project</h2><p>GitHub is required. The current backend also requires a Google Drive PDF.</p></div><div className="student-feature-icon"><FolderGit2 size={18} /></div></div>{submitted ? <div className="student-round-submitted"><CheckCircle2 size={18} /><div><strong>ROUND 2 SUBMITTED</strong><span>{submission.status || "SUBMITTED"}</span></div></div> : roundCompleted || hackathonCompleted ? <div className="student-round-notice student-round-completed-notice"><strong>{hackathonCompleted ? "HACKATHON COMPLETED" : "ROUND 2 COMPLETED"}</strong><span>{hackathonCompleted ? "This hackathon has finished. Round 2 is now read-only." : "Round 2 has been completed. New submissions are closed."}</span></div> : !accessible ? <div className="student-round-notice"><strong>ROUND 2 IS LOCKED</strong><span>Your Round 1 team decision must be selected and Round 2 must be active.</span></div> : <div className="student-round-form"><label>GITHUB REPOSITORY URL *</label><div className="student-input-icon"><LinkIcon size={15} /><input value={github} onChange={(e) => setGithub(e.target.value)} placeholder="https://github.com/username/project" /></div><label>GOOGLE DRIVE PDF URL *</label><div className="student-input-icon"><ExternalLink size={15} /><input value={pdf} onChange={(e) => setPdf(e.target.value)} placeholder="https://drive.google.com/file/d/.../view" /></div><button className="student-primary-btn" disabled={saving || !github.trim() || !pdf.trim()} onClick={submit}>{saving ? "SUBMITTING..." : "SUBMIT ROUND 2 ↗"}</button></div>}</div></div></section>;
 }
 
 function StudentRoundThreePage() {
   const [items, setItems] = useState([]); const [selected, setSelected] = useState(""); const [data, setData] = useState(null); const [github, setGithub] = useState(""); const [demo, setDemo] = useState(""); const [description, setDescription] = useState(""); const [loading, setLoading] = useState(true); const [loadingStatus, setLoadingStatus] = useState(false); const [saving, setSaving] = useState(false); const [error, setError] = useState(""); const [message, setMessage] = useState("");
   const loadStatus = async (id) => { if (!id) return; setLoadingStatus(true); setError(""); try { const result = await apiFetch(`/student/round3/hackathons/${id}`); const payload = result?.round3 || result?.data || result; setData({ ...payload, round2: result?.round2 || payload?.round2 }); setGithub(payload?.submission?.github_url || ""); setDemo(payload?.submission?.demo_url || ""); setDescription(payload?.submission?.project_description || ""); } catch (err) { setData(null); setError(err.message || "Failed to fetch Round 3 status"); } finally { setLoadingStatus(false); } };
-  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((result) => { const list = unwrapList(result, ["hackathons", "data"]); setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id)); }).catch((err) => setError(err.message)).finally(() => setLoading(false)); }, []);
+  useEffect(() => { apiFetch("/student/hackathons/my-hackathons").then((result) => { const list = dedupeHackathons(unwrapList(result, ["hackathons", "data"])); setItems(list); if (list[0]) setSelected(String(list[0].hackathon_id || list[0].id)); }).catch((err) => setError(err.message)).finally(() => setLoading(false)); }, []);
   useEffect(() => { setMessage(""); loadStatus(selected); }, [selected]);
-  const submission = data?.submission || null; const accessible = data?.accessible === true; const submitted = Boolean(submission);
+  const submission = data?.submission || null;
+  const roundRecord = getRoundRecord(data, 3);
+  const roundStatus = String(roundRecord?.status || data?.round_status || "").toUpperCase();
+  const roundCompleted = isRoundCompleted(data, 3) || isCompletedStatus(roundStatus);
+  const hackathonCompleted = isCompletedRecord(data?.hackathon) || Number(data?.hackathon?.current_round) === 4;
+  const accessible = !roundCompleted && !hackathonCompleted && data?.accessible === true;
+  const submitted = Boolean(submission);
   const submit = async () => { if (!selected) return setError("Select a hackathon first."); if (!github.trim()) return setError("GitHub repository URL is required."); setSaving(true); setError(""); setMessage(""); try { const result = await apiFetch(`/student/round3/hackathons/${selected}/submit`, { method: "POST", body: JSON.stringify({ github_url: github.trim(), demo_url: demo.trim() || null, project_description: description.trim() || null }) }); if (result?.submission) setData((current) => ({ ...(current || {}), submission: result.submission })); setMessage("Round 3 final submission sent successfully."); await loadStatus(selected); } catch (err) { setError(err.message || "Failed to submit Round 3"); } finally { setSaving(false); } };
   if (loading) return <LoadingState label="Loading Round 3..." />;
-  return <section><PageHeading eyebrow="BUILD / ROUND 03" title="FINAL SUBMISSION." text="Submit the final GitHub repository and optional demo/details when Round 3 is live." />{error && <div className="student-inline-error">{error}</div>}{message && <div className="student-inline-success">{message}</div>}<div className="student-feature-grid student-round-workspace"><div className="student-feature-card"><span className="student-feature-label">FINAL ROUND STATUS</span><StudentHackathonSelector value={selected} onChange={setSelected} items={items}/>{loadingStatus ? <LoadingState label="Loading round status..." /> : <div className="student-info-list"><div><span>ROUND 3 ACCESS</span><strong>{accessible ? "OPEN" : value(data?.message, "LOCKED")}</strong></div><div><span>SUBMISSION</span><strong>{value(submission?.status, "Not submitted")}</strong></div><div><span>SCORE</span><strong>{value(submission?.score, data?.score, "Not scored")}</strong></div><div><span>DECISION</span><strong>{value(submission?.decision, data?.decision?.decision, "Pending")}</strong></div><div className="student-feedback-row"><span>ORGANIZER FEEDBACK</span><strong>{value(submission?.organizer_feedback, data?.organizer_feedback, data?.decision?.organizer_feedback, "No feedback yet")}</strong></div></div>}</div><div className="student-feature-card student-round-form-card"><div className="student-feature-card-head"><div><span className="student-feature-label">FINAL BUILD</span><h2>Ship the final project</h2><p>GitHub is required. Demo URL and project description are optional.</p></div><div className="student-feature-icon"><Terminal size={18}/></div></div>{submitted ? <div className="student-round-submitted"><CheckCircle2 size={18}/><div><strong>FINAL SUBMISSION RECEIVED</strong><span>{submission.status || "SUBMITTED"}</span></div></div> : !accessible ? <div className="student-round-notice"><strong>ROUND 3 IS LOCKED</strong><span>{value(data?.message, "Your team must be selected from Round 2 and Round 3 must be opened by the organizer.")}</span></div> : <div className="student-round-form"><label>GITHUB REPOSITORY URL *</label><div className="student-input-icon"><LinkIcon size={15}/><input value={github} onChange={(e)=>setGithub(e.target.value)} placeholder="https://github.com/username/project"/></div><label>LIVE DEMO URL <span>(OPTIONAL)</span></label><div className="student-input-icon"><ExternalLink size={15}/><input value={demo} onChange={(e)=>setDemo(e.target.value)} placeholder="https://your-project.vercel.app"/></div><label>PROJECT DESCRIPTION <span>(OPTIONAL)</span></label><textarea rows={6} maxLength={5000} value={description} onChange={(e)=>setDescription(e.target.value.slice(0,5000))} placeholder="Briefly explain the final solution, key features and how it works..."/><div className="student-form-counter">{description.length} / 5000</div><button className="student-primary-btn" disabled={saving || !github.trim()} onClick={submit}>{saving ? "SUBMITTING..." : "SUBMIT FINAL PROJECT ↗"}</button></div>}</div></div></section>;
+  return <section><PageHeading eyebrow="BUILD / ROUND 03" title="FINAL SUBMISSION." text="Submit the final GitHub repository and optional demo/details when Round 3 is live." />{error && <div className="student-inline-error">{error}</div>}{message && <div className="student-inline-success">{message}</div>}<div className={`student-feature-grid student-round-workspace ${roundCompleted || hackathonCompleted ? "student-round-completed-workspace" : ""}`}><div className="student-feature-card student-round-status-card">{(roundCompleted || hackathonCompleted) && <CompletionStamp round={hackathonCompleted ? null : 3} />}<span className="student-feature-label">FINAL ROUND STATUS</span><StudentHackathonSelector value={selected} onChange={setSelected} items={items}/>{loadingStatus ? <LoadingState label="Loading round status..." /> : <div className="student-info-list"><div><span>ROUND 3 ACCESS</span><strong>{roundCompleted ? "COMPLETED" : accessible ? "OPEN" : value(data?.message, "LOCKED")}</strong></div><div><span>SUBMISSION</span><strong>{value(submission?.status, "Not submitted")}</strong></div><div><span>SCORE</span><strong>{value(submission?.score, data?.score, "Not scored")}</strong></div><div><span>DECISION</span><strong>{value(submission?.decision, data?.decision?.decision, "Pending")}</strong></div><div className="student-feedback-row"><span>ORGANIZER FEEDBACK</span><strong>{value(submission?.organizer_feedback, data?.organizer_feedback, data?.decision?.organizer_feedback, "No feedback yet")}</strong></div></div>}</div><div className="student-feature-card student-round-form-card"><div className="student-feature-card-head"><div><span className="student-feature-label">FINAL BUILD</span><h2>Ship the final project</h2><p>GitHub is required. Demo URL and project description are optional.</p></div><div className="student-feature-icon"><Terminal size={18}/></div></div>{submitted ? <div className="student-round-submitted"><CheckCircle2 size={18}/><div><strong>FINAL SUBMISSION RECEIVED</strong><span>{submission.status || "SUBMITTED"}</span></div></div> : roundCompleted || hackathonCompleted ? <div className="student-round-notice student-round-completed-notice"><strong>HACKATHON COMPLETED</strong><span>All three rounds are finished. This hackathon is now read-only.</span></div> : !accessible ? <div className="student-round-notice"><strong>ROUND 3 IS LOCKED</strong><span>{value(data?.message, "Your team must be selected from Round 2 and Round 3 must be opened by the organizer.")}</span></div> : <div className="student-round-form"><label>GITHUB REPOSITORY URL *</label><div className="student-input-icon"><LinkIcon size={15}/><input value={github} onChange={(e)=>setGithub(e.target.value)} placeholder="https://github.com/username/project"/></div><label>LIVE DEMO URL <span>(OPTIONAL)</span></label><div className="student-input-icon"><ExternalLink size={15}/><input value={demo} onChange={(e)=>setDemo(e.target.value)} placeholder="https://your-project.vercel.app"/></div><label>PROJECT DESCRIPTION <span>(OPTIONAL)</span></label><textarea rows={6} maxLength={5000} value={description} onChange={(e)=>setDescription(e.target.value.slice(0,5000))} placeholder="Briefly explain the final solution, key features and how it works..."/><div className="student-form-counter">{description.length} / 5000</div><button className="student-primary-btn" disabled={saving || !github.trim()} onClick={submit}>{saving ? "SUBMITTING..." : "SUBMIT FINAL PROJECT ↗"}</button></div>}</div></div></section>;
 }
 
 function StudentSubmissionsPage({ project }) {

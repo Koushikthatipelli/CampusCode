@@ -1,25 +1,21 @@
+/*
+  LEGACY STUDENT DASHBOARD ROUTES
+
+  The official dashboard route is now:
+
+  /api/student/dashboard
+
+  handled by:
+
+  studentDashboard.routes.js
+
+  This file intentionally exports an empty router so that
+  an old server.js import cannot create a second dashboard
+  endpoint.
+*/
+
 import express from "express";
 
-import {
-  getStudentDashboard,
-} from "../controllers/student-dashboard.controller.js";
-
-import {
-  requireAuth,
-  requireRole,
-} from "../middleware/auth.middleware.js";
-
 const router = express.Router();
-
-/* =========================================================
-   STUDENT DASHBOARD
-========================================================= */
-
-router.get(
-  "/student",
-  requireAuth,
-  requireRole("STUDENT"),
-  getStudentDashboard
-);
 
 export default router;

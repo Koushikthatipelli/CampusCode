@@ -159,6 +159,7 @@ export async function registerForHackathon(req, res) {
 
     if (hackathon.registration_deadline) {
       const now = new Date();
+
       const deadline = new Date(
         hackathon.registration_deadline
       );
@@ -239,7 +240,11 @@ export async function registerForHackathon(req, res) {
         registrationResult.rows[0],
     });
   } catch (error) {
-    await client.query("ROLLBACK");
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      // Ignore rollback failure
+    }
 
     console.error(
       "REGISTER FOR HACKATHON ERROR:",
@@ -263,6 +268,22 @@ export async function registerForHackathon(req, res) {
    Returns every hackathon registered by the logged-in
    student.
 
+   IMPORTANT FIX:
+   The previous implementation directly joined:
+
+   hackathon_participants
+          ↓
+   team_members
+          ↓
+   teams
+          ↓
+   projects
+
+   That could create multiple rows for the same hackathon.
+
+   This version uses LATERAL queries and LIMIT 1 so the
+   student receives exactly ONE record per hackathon.
+
    Also returns:
    - team
    - project
@@ -273,10 +294,6 @@ export async function registerForHackathon(req, res) {
 export async function getMyHackathons(req, res) {
   try {
     const studentId = req.user.id;
-
-    /* -------------------------------------------------------
-       1. Get registrations
-    ------------------------------------------------------- */
 
     const result = await pool.query(
       `
@@ -297,43 +314,66 @@ export async function getMyHackathons(req, res) {
         h.publication_status,
         h.current_round,
 
-        t.id AS team_id,
-        t.name AS team_name,
-        t.status AS team_status,
+        team_data.team_id,
+        team_data.team_name,
+        team_data.team_status,
 
-        p.id AS project_id,
-        p.title AS project_title
+        project_data.project_id,
+        project_data.project_title
 
       FROM hackathon_participants hp
 
       JOIN hackathons h
         ON h.id = hp.hackathon_id
 
-      LEFT JOIN team_members tm
-        ON tm.user_id = hp.user_id
+      LEFT JOIN LATERAL (
+        SELECT
+          t.id AS team_id,
+          t.name AS team_name,
+          t.status AS team_status
+        FROM team_members tm
+        JOIN teams t
+          ON t.id = tm.team_id
+        WHERE tm.user_id = hp.user_id
+          AND t.hackathon_id = hp.hackathon_id
+        ORDER BY t.id
+        LIMIT 1
+      ) team_data ON TRUE
 
-      LEFT JOIN teams t
-        ON t.id = tm.team_id
-       AND t.hackathon_id = hp.hackathon_id
-
-      LEFT JOIN projects p
-        ON p.team_id = t.id
+      LEFT JOIN LATERAL (
+        SELECT
+          p.id AS project_id,
+          p.title AS project_title
+        FROM projects p
+        WHERE p.team_id = team_data.team_id
+        ORDER BY p.id
+        LIMIT 1
+      ) project_data ON TRUE
 
       WHERE hp.user_id = $1
 
-      ORDER BY h.start_date DESC NULLS LAST
+      ORDER BY
+        h.start_date DESC NULLS LAST,
+        hp.hackathon_id
       `,
       [studentId]
     );
 
     /* -------------------------------------------------------
-       2. Get rounds for all registrations
+       Get unique hackathon IDs
     ------------------------------------------------------- */
 
-    const hackathonIds =
-      result.rows.map(
-        (row) => row.hackathon_id
-      );
+    const hackathonIds = [
+      ...new Set(
+        result.rows
+          .map((row) => row.hackathon_id)
+          .filter(Boolean)
+      ),
+    ];
+
+    /* -------------------------------------------------------
+       Get rounds
+    ------------------------------------------------------- */
 
     let rounds = [];
 
@@ -366,208 +406,222 @@ export async function getMyHackathons(req, res) {
     }
 
     /* -------------------------------------------------------
-       3. Format response
+       Group rounds by hackathon
+    ------------------------------------------------------- */
+
+    const roundsByHackathon = new Map();
+
+    for (const round of rounds) {
+      const key = String(round.hackathon_id);
+
+      if (!roundsByHackathon.has(key)) {
+        roundsByHackathon.set(key, []);
+      }
+
+      roundsByHackathon.get(key).push(round);
+    }
+
+    /* -------------------------------------------------------
+       Format response
     ------------------------------------------------------- */
 
     const now = new Date();
 
-    const hackathons = result.rows.map(
-      (row) => {
-        const hackathonRounds =
-          rounds.filter(
-            (round) =>
-              String(round.hackathon_id) ===
-              String(row.hackathon_id)
-          );
+    const seen = new Set();
+    const hackathons = [];
 
-        /* -----------------------------------------------
-           Current round name
-        ----------------------------------------------- */
+    for (const row of result.rows) {
+      const hackathonId = String(row.hackathon_id);
 
-        let roundName = "Round 1";
+      if (!hackathonId || seen.has(hackathonId)) {
+        continue;
+      }
 
-        if (row.current_round === 2) {
-          roundName = "Round 2";
-        } else if (row.current_round === 3) {
-          roundName = "Round 3";
-        } else if (row.current_round === 4) {
-          roundName = "Completed";
-        }
+      seen.add(hackathonId);
 
-        /* -----------------------------------------------
-           Round access
+      const hackathonRounds =
+        roundsByHackathon.get(hackathonId) || [];
 
-           A student can access a round only when
-           organizer has activated it.
-        ----------------------------------------------- */
+      /* -----------------------------------------------------
+         Current round name
+      ----------------------------------------------------- */
 
-        const formattedRounds =
-          [1, 2, 3].map(
-            (roundNumber) => {
-              const round =
-                hackathonRounds.find(
-                  (item) =>
-                    Number(
-                      item.round_number
-                    ) === roundNumber
-                );
+      let roundName = "Round 1";
 
-              if (!round) {
-                return {
-                  round_number: roundNumber,
-                  title:
-                    `Round ${roundNumber}`,
-                  status: "NOT_SCHEDULED",
-                  locked: true,
-                  can_access: false,
-                };
-              }
+      if (Number(row.current_round) === 2) {
+        roundName = "Round 2";
+      } else if (Number(row.current_round) === 3) {
+        roundName = "Round 3";
+      } else if (Number(row.current_round) === 4) {
+        roundName = "Completed";
+      }
 
-              const isLive =
-                round.status === "LIVE";
+      /* -----------------------------------------------------
+         Format rounds
+      ----------------------------------------------------- */
 
-              const isCompleted =
-                round.status === "COMPLETED";
+      const formattedRounds = [1, 2, 3].map(
+        (roundNumber) => {
+          const round =
+            hackathonRounds.find(
+              (item) =>
+                Number(item.round_number) ===
+                roundNumber
+            );
 
-              const hasStarted =
-                round.start_at &&
-                now >=
-                  new Date(
-                    round.start_at
-                  );
+          if (!round) {
+            return {
+              round_number: roundNumber,
+              title: `Round ${roundNumber}`,
+              status: "NOT_SCHEDULED",
+              locked: true,
+              can_access: false,
+            };
+          }
 
-              return {
-                id: round.id,
+          const status = String(
+            round.status || ""
+          ).toUpperCase();
 
-                round_number:
-                  Number(
-                    round.round_number
-                  ),
+          const isLive =
+            status === "LIVE";
 
-                title:
-                  round.title ||
-                  `Round ${roundNumber}`,
+          const isCompleted =
+            status === "COMPLETED";
 
-                start_at:
-                  round.start_at,
+          const hasStarted =
+            round.start_at
+              ? now >= new Date(round.start_at)
+              : false;
 
-                end_at:
-                  round.end_at,
+          return {
+            id: round.id,
 
-                status:
-                  round.status,
-
-                activated_at:
-                  round.activated_at,
-
-                completed_at:
-                  round.completed_at,
-
-                /*
-                  LOCKED until organizer activates.
-                */
-                locked:
-                  !isLive &&
-                  !isCompleted,
-
-                can_access:
-                  isLive,
-
-                scheduled:
-                  hasStarted &&
-                  !isLive &&
-                  !isCompleted,
-
-                label:
-                  isCompleted
-                    ? "Completed"
-                    : isLive
-                    ? "Live"
-                    : "Locked",
-              };
-            }
-          );
-
-        return {
-          participant_id:
-            row.participant_id,
-
-          hackathon_id:
-            row.hackathon_id,
-
-          registration_status:
-            row.registration_status,
-
-          hackathon: {
-            id:
-              row.hackathon_id,
+            round_number:
+              Number(round.round_number),
 
             title:
-              row.hackathon_title,
+              round.title ||
+              `Round ${roundNumber}`,
 
-            description:
-              row.hackathon_description,
+            start_at:
+              round.start_at,
 
-            track:
-              row.track,
-
-            location:
-              row.location,
-
-            start_date:
-              row.start_date,
-
-            end_date:
-              row.end_date,
-
-            registration_deadline:
-              row.registration_deadline,
+            end_at:
+              round.end_at,
 
             status:
-              row.hackathon_status,
+              round.status,
 
-            publication_status:
-              row.publication_status,
+            activated_at:
+              round.activated_at,
 
-            current_round:
-              row.current_round,
+            completed_at:
+              round.completed_at,
 
-            current_round_name:
-              roundName,
-          },
+            locked:
+              !isLive && !isCompleted,
 
-          team: row.team_id
-            ? {
-                id:
-                  row.team_id,
+            can_access:
+              isLive,
 
-                name:
-                  row.team_name,
+            scheduled:
+              hasStarted &&
+              !isLive &&
+              !isCompleted,
 
-                status:
-                  row.team_status,
-              }
-            : null,
+            label:
+              isCompleted
+                ? "Completed"
+                : isLive
+                ? "Live"
+                : "Locked",
+          };
+        }
+      );
 
-          project: row.project_id
-            ? {
-                id:
-                  row.project_id,
+      /* -----------------------------------------------------
+         Final hackathon object
+      ----------------------------------------------------- */
 
-                title:
-                  row.project_title,
-              }
-            : null,
+      hackathons.push({
+        participant_id:
+          row.participant_id,
 
-          rounds:
-            formattedRounds,
-        };
-      }
-    );
+        hackathon_id:
+          row.hackathon_id,
 
-    /* -------------------------------------------------------
-       4. Return
-    ------------------------------------------------------- */
+        registration_status:
+          row.registration_status,
+
+        hackathon: {
+          id:
+            row.hackathon_id,
+
+          title:
+            row.hackathon_title,
+
+          description:
+            row.hackathon_description,
+
+          track:
+            row.track,
+
+          location:
+            row.location,
+
+          start_date:
+            row.start_date,
+
+          end_date:
+            row.end_date,
+
+          registration_deadline:
+            row.registration_deadline,
+
+          status:
+            row.hackathon_status,
+
+          publication_status:
+            row.publication_status,
+
+          current_round:
+            Number(row.current_round || 0),
+
+          current_round_name:
+            roundName,
+
+          completed:
+            Number(row.current_round || 0) === 4,
+        },
+
+        team: row.team_id
+          ? {
+              id:
+                row.team_id,
+
+              name:
+                row.team_name,
+
+              status:
+                row.team_status,
+            }
+          : null,
+
+        project: row.project_id
+          ? {
+              id:
+                row.project_id,
+
+              title:
+                row.project_title,
+            }
+          : null,
+
+        rounds:
+          formattedRounds,
+      });
+    }
 
     return res.status(200).json({
       success: true,
@@ -662,8 +716,11 @@ export async function getMyHackathonById(
         status,
         activated_at,
         completed_at
+
       FROM hackathon_rounds
+
       WHERE hackathon_id = $1
+
       ORDER BY round_number
       `,
       [hackathonId]
@@ -686,23 +743,33 @@ export async function getMyHackathonById(
             return {
               round_number:
                 roundNumber,
+
               title:
                 `Round ${roundNumber}`,
+
               status:
                 "NOT_SCHEDULED",
+
               locked: true,
+
               can_access: false,
             };
           }
 
+          const status =
+            String(
+              round.status || ""
+            ).toUpperCase();
+
           const live =
-            round.status === "LIVE";
+            status === "LIVE";
 
           const completed =
-            round.status === "COMPLETED";
+            status === "COMPLETED";
 
           return {
-            id: round.id,
+            id:
+              round.id,
 
             round_number:
               Number(

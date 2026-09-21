@@ -2584,3 +2584,125 @@
 .admin-activity-row time{
   font-size:9px !important;
 }
+
+
+/* =========================================================
+   ADMIN PANEL — FINAL READABILITY / LIFECYCLE OVERRIDES
+   ========================================================= */
+
+.admin-nav-label{
+  font-size:10px;
+}
+
+.admin-nav-item{
+  min-height:46px;
+  font-size:13px;
+}
+
+.admin-breadcrumb{
+  font-size:10px;
+}
+
+.admin-page-title p{
+  font-size:13px;
+}
+
+.admin-card-head h3{
+  font-size:20px;
+}
+
+.admin-signal span,
+.admin-signal strong,
+.admin-row-main strong{
+  font-size:12px;
+}
+
+.admin-row-main span,
+.admin-system-footer{
+  font-size:10px;
+}
+
+.admin-stat-label,
+.admin-stat-detail{
+  font-size:10px;
+}
+
+.admin-stat-number{
+  font-size:35px;
+}
+
+.admin-event-card-completed{
+  border-color:rgba(167,243,122,.24) !important;
+}
+
+.status-badge.completed{
+  color:var(--admin-lime);
+  background:rgba(167,243,122,.08);
+  border-color:rgba(167,243,122,.2);
+}
+
+.admin-completed-note{
+  margin:14px 0 12px;
+  padding:10px 12px;
+  border:1px solid rgba(167,243,122,.18);
+  border-radius:8px;
+  color:var(--admin-lime);
+  background:rgba(167,243,122,.045);
+  font-size:10px;
+  font-weight:700;
+  line-height:1.5;
+}
+
+.admin-event-card-completed .event-action:disabled{
+  opacity:.48;
+  cursor:not-allowed;
+}
+
+.admin-blueprint-node{
+  z-index:20 !important;
+}
+
+.admin-blueprint-node-face strong{
+  font-size:12px !important;
+}
+
+.admin-blueprint-node-face small{
+  font-size:9px !important;
+}
+
+.admin-blueprint-help{
+  font-size:8px !important;
+}
+
+.admin-blueprint-modal{
+  font-size:14px;
+}
+
+.admin-blueprint-modal-section p{
+  font-size:13px !important;
+  line-height:1.7 !important;
+}
+
+@media (max-width:900px){
+  .admin-nav-item{
+    font-size:12px;
+  }
+
+  .admin-page-title p{
+    font-size:12px;
+  }
+}
+
+@media (max-width:700px){
+  .admin-nav-item{
+    min-height:44px;
+  }
+
+  .admin-blueprint-node-face strong{
+    font-size:10px !important;
+  }
+
+  .admin-blueprint-node-face small{
+    font-size:8px !important;
+  }
+}

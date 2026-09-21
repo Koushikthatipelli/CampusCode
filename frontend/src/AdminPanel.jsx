@@ -90,6 +90,32 @@ const unwrap = (data, keys = []) => {
 const value = (v, fallback = "—") =>
   v === null || v === undefined || v === "" ? fallback : v;
 
+const COMPLETED_STATUSES = new Set([
+  "COMPLETED",
+  "COMPLETE",
+  "FINISHED",
+  "CLOSED",
+  "ARCHIVED",
+]);
+
+const isCompletedStatus = (status) =>
+  COMPLETED_STATUSES.has(String(status || "").trim().toUpperCase());
+
+const dedupeById = (items = []) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const id = item?.id;
+    if (id === undefined || id === null) return true;
+    const key = String(id);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const dedupeHackathons = (items = []) =>
+  dedupeById(items);
+
 const formatDate = (v) => {
   if (!v) return "—";
   const d = new Date(v);
@@ -325,14 +351,14 @@ function Dashboard({ onNavigate }) {
     }
 
     if (results[1].status === "fulfilled") {
-      setUsers(unwrap(results[1].value, ["users", "data"]));
+      setUsers(dedupeById(unwrap(results[1].value, ["users", "data"])));
     } else {
       nextErrors.push(results[1].reason?.message || "Unable to load users.");
     }
 
     if (results[2].status === "fulfilled") {
       setHackathons(
-        unwrap(results[2].value, ["hackathons", "events", "data"])
+        dedupeHackathons(unwrap(results[2].value, ["hackathons", "events", "data"]))
       );
     } else {
       nextErrors.push(results[2].reason?.message || "Unable to load hackathons.");
@@ -340,7 +366,7 @@ function Dashboard({ onNavigate }) {
 
     if (results[3].status === "fulfilled") {
       setPending(
-        unwrap(results[3].value, ["hackathons", "data"])
+        dedupeHackathons(unwrap(results[3].value, ["hackathons", "data"]))
       );
     } else {
       nextErrors.push(results[3].reason?.message || "Unable to load approvals.");
@@ -634,7 +660,7 @@ function AIAnalysisPage() {
 
     try {
       const data = await apiFetch("/hackathons");
-      const list = unwrap(data, ["hackathons", "events", "data"]);
+      const list = dedupeHackathons(unwrap(data, ["hackathons", "events", "data"]));
 
       setHackathons(list);
 
@@ -1157,7 +1183,7 @@ function HackathonsPage() {
     try {
       const data = await apiFetch("/hackathons");
       setHackathons(
-        unwrap(data, ["hackathons", "events", "data"])
+        dedupeHackathons(unwrap(data, ["hackathons", "events", "data"]))
       );
     } catch (e) {
       setError(e.message);
@@ -1173,6 +1199,18 @@ function HackathonsPage() {
 
   const updateStatus = async (hackathon, status) => {
     if (!hackathon?.id) return;
+
+    const currentStatus = String(
+      hackathon.publication_status ||
+      hackathon.approval_status ||
+      hackathon.status ||
+      ""
+    ).toUpperCase();
+
+    if (isCompletedStatus(currentStatus)) {
+      setError("Completed hackathons are read-only and cannot be blocked or unblocked.");
+      return;
+    }
 
     setBusy(`${status}-${hackathon.id}`);
     setError("");
@@ -1263,14 +1301,23 @@ function HackathonsPage() {
             ).toUpperCase();
 
             return (
-              <article className="admin-event-card" key={hackathon.id}>
+              <article
+                className={`admin-event-card ${
+                  isCompletedStatus(status) ? "admin-event-card-completed" : ""
+                }`}
+                key={hackathon.id}
+              >
                 <div className="admin-event-top">
                   <span className="event-index">
                     #{String(hackathon.id).slice(0, 8)}
                   </span>
 
-                  <span className="status-badge">
-                    {status.replaceAll("_", " ")}
+                  <span className={`status-badge ${
+                    isCompletedStatus(status) ? "completed" : ""
+                  }`}>
+                    {isCompletedStatus(status)
+                      ? "COMPLETED ✓"
+                      : status.replaceAll("_", " ")}
                   </span>
                 </div>
 
@@ -1315,10 +1362,16 @@ function HackathonsPage() {
                   </span>
                 </div>
 
+                {isCompletedStatus(status) && (
+                  <div className="admin-completed-note">
+                    This hackathon is completed and is now read-only.
+                  </div>
+                )}
+
                 <div className="admin-event-actions">
                   <button
                     className="event-action neutral"
-                    disabled={!!busy}
+                    disabled={!!busy || isCompletedStatus(status)}
                     onClick={() =>
                       updateStatus(
                         hackathon,
@@ -1421,7 +1474,7 @@ function ApprovalsPage() {
       );
 
       setItems((current) =>
-        current.filter((item) => item.id !== item.id)
+        current.filter((currentItem) => currentItem.id !== item.id)
       );
 
       await load();
@@ -1843,7 +1896,7 @@ function TeamsPage() {
   const loadHackathons = async () => {
     try {
       const data = await apiFetch("/hackathons");
-      const list = unwrap(data, ["hackathons", "events", "data"]);
+      const list = dedupeHackathons(unwrap(data, ["hackathons", "events", "data"]));
       setHackathons(list);
 
       if (list[0]?.id && !selected) {
@@ -2481,8 +2534,8 @@ function ActivityPage() {
   const load = async () => {
     setLoading(true); setError("");
     try {
-      const result = await apiFetch("/superadmin/activity");
-      setItems(unwrap(result, ["activity", "activities", "events", "logs", "data", "items"]));
+      const result = await apiFetch("/monitoring/requests?limit=50");
+      setItems(unwrap(result, ["requests", "activity", "activities", "events", "logs", "data", "items"]));
     } catch (e) {
       setError(e.message || "Unable to load system activity.");
     } finally { setLoading(false); }
@@ -2759,7 +2812,6 @@ function SystemBlueprintPage() {
   const [blueprint, setBlueprint] = useState(null);
   const [health, setHealth] = useState(null);
   const [stats, setStats] = useState(null);
-  const [maintenance, setMaintenance] = useState(null);
   const [rootId, setRootId] = useState("campuscode");
   const [selectedNode, setSelectedNode] = useState(null);
   const [nodeDetails, setNodeDetails] = useState(null);
@@ -2777,34 +2829,19 @@ function SystemBlueprintPage() {
     setError("");
 
     const results = await Promise.allSettled([
-      apiFetch("/superadmin/blueprint"),
-      apiFetch("/superadmin/health"),
-      apiFetch("/superadmin/stats"),
-      apiFetch("/superadmin/maintenance"),
+      apiFetch("/monitoring/health"),
+      apiFetch("/monitoring/stats"),
     ]);
 
-    const [bp, h, s, m] = results;
+    const [h, s] = results;
+    setBlueprint(ADMIN_BLUEPRINT);
 
-    if (bp.status === "fulfilled") {
-      setBlueprint(
-        bp.value?.blueprint ||
-        bp.value?.system ||
-        bp.value?.data ||
-        bp.value ||
-        {}
-      );
+    if (h.status === "fulfilled") {
+      setHealth(h.value);
     } else {
-      // The architecture page must remain usable even if telemetry/
-      // observability APIs are unavailable. The frontend blueprint is the
-      // source of truth for navigation and is already defined above.
-      setBlueprint({});
-      setError(
-        bp.reason?.message ||
-        "Live blueprint API unavailable. Showing the local architecture map."
-      );
+      setError(h.reason?.message || "Unable to load monitoring health.");
     }
 
-    if (h.status === "fulfilled") setHealth(h.value);
     if (s.status === "fulfilled") {
       setStats(
         s.value?.statistics ||
@@ -2813,23 +2850,48 @@ function SystemBlueprintPage() {
         s.value ||
         {}
       );
+    } else if (h.status === "rejected") {
+      setError(s.reason?.message || "Unable to load monitoring statistics.");
     }
-    if (m.status === "fulfilled") setMaintenance(m.value);
 
     setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
 
-  const maintenanceEnabled = Boolean(maintenance?.enabled ?? maintenance?.maintenance_mode);
   const openNode = async (node, enter = false) => {
     if (!node) { setSelectedNode(null); setNodeDetails(null); return; }
     if (enter && node.children?.length) { enterBlueprint(node); return; }
-    setSelectedNode(node); setNodeDetails(null); setError("");
+    setSelectedNode(node);
+    setNodeDetails(null);
+    setError("");
+
+    const monitoringRoutes = {
+      "monitoring": "/monitoring/stats",
+      "monitoring-requests": "/monitoring/requests?limit=50",
+      "monitoring-errors": "/monitoring/errors?limit=50",
+      "monitoring-health": "/monitoring/health",
+      "monitoring-activity": "/monitoring/requests?limit=50",
+    };
+
+    const endpoint = monitoringRoutes[node.id];
+    if (!endpoint) {
+      setNodeDetails(node);
+      return;
+    }
+
     try {
-      const result = await apiFetch(`/superadmin/blueprint/${encodeURIComponent(node.id)}`);
-      setNodeDetails(result?.node || result?.data || result);
-    } catch { setNodeDetails(node); }
+      const result = await apiFetch(endpoint);
+      setNodeDetails({
+        ...node,
+        live_backend: result,
+      });
+    } catch (e) {
+      setNodeDetails({
+        ...node,
+        live_backend_error: e.message || "Unable to load live monitoring data.",
+      });
+    }
   };
   const enterBlueprint = (node) => {
     if (node.children?.length) { setRootId(node.id); setSelectedNode(null); setNodeDetails(null); setQuery(""); setZoom(1); }
@@ -2840,24 +2902,35 @@ function SystemBlueprintPage() {
     const parent = Object.values(ADMIN_BLUEPRINT).find((n) => (n.children || []).includes(rootId));
     setRootId(parent?.id || "campuscode"); setSelectedNode(null); setNodeDetails(null); setQuery(""); setZoom(1);
   };
-  const toggleMaintenance = async () => {
+  const refreshMonitoring = async () => {
     if (busy) return;
-    setBusy(true); setError(""); setSuccess("");
-    try { const result = await apiFetch("/superadmin/maintenance", { method: "PATCH", body: JSON.stringify({ enabled: !maintenanceEnabled }) }); setMaintenance(result); setSuccess(!maintenanceEnabled ? "Maintenance mode enabled." : "Maintenance mode disabled."); }
-    catch (e) { setError(e.message || "Unable to update maintenance mode."); }
-    finally { setBusy(false); }
-  };
-  const clearTelemetry = async () => {
-    if (busy) return;
-    setBusy(true); setError(""); setSuccess("");
-    try { await apiFetch("/superadmin/telemetry", { method: "DELETE" }); setSuccess("System telemetry cleared."); }
-    catch (e) { setError(e.message || "Unable to clear telemetry."); }
-    finally { setBusy(false); }
+    setBusy(true);
+    setError("");
+    setSuccess("");
+    try {
+      const [healthResult, statsResult] = await Promise.all([
+        apiFetch("/monitoring/health"),
+        apiFetch("/monitoring/stats"),
+      ]);
+      setHealth(healthResult);
+      setStats(
+        statsResult?.statistics ||
+        statsResult?.stats ||
+        statsResult?.data ||
+        statsResult ||
+        {}
+      );
+      setSuccess("Monitoring data refreshed from the live backend.");
+    } catch (e) {
+      setError(e.message || "Unable to refresh monitoring data.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const root = adminBlueprintNode(rootId);
   const statsObject = stats || {};
-  const healthStatus = String(health?.status || health?.overall || "ONLINE").toUpperCase();
+  const healthStatus = String(health?.system?.status || health?.status || health?.overall || "ONLINE").toUpperCase();
   const mergedDetails = nodeDetails || selectedNode;
   const layerOptions = ["ALL", "APPLICATION", "BACKEND", "DATABASE", "AI", "MONITORING"];
 

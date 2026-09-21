@@ -36,10 +36,10 @@ function Initializing() {
     const progressTimer = setInterval(() => {
       const elapsed = Date.now() - startTime;
 
-      // Minimum 5 seconds
+      // Minimum 3 seconds
       const calculatedProgress = Math.min(
         100,
-        Math.floor((elapsed / 5000) * 100)
+        Math.floor((elapsed / 3000) * 100)
       );
 
       setProgress(calculatedProgress);
@@ -55,7 +55,7 @@ function Initializing() {
       } else {
         navigate("/", { replace: true });
       }
-    }, 5000);
+    }, 3000);
 
     return () => {
       clearInterval(phaseTimer);
@@ -77,10 +77,10 @@ function Initializing() {
 
         <div className="initializing-brand">
 
-          <span className="initializing-logo">
-            <i />
-            <i />
-            <i />
+          <span className="initializing-logo" aria-label="CampusCode logo">
+            <i className="initializing-logo-bar initializing-logo-black" />
+            <i className="initializing-logo-bar initializing-logo-purple" />
+            <i className="initializing-logo-bar initializing-logo-lime" />
           </span>
 
           <div>

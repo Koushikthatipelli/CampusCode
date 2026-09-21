@@ -123,64 +123,40 @@
   color: #8b8b85;
 }
 
+/* CAMPUSCODE ORIGINAL LOGO — CSS ONLY */
 .initializing-logo {
-  width: 34px;
+  width: 36px;
   height: 34px;
-
-  border: 1px solid #111;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-
-  transform: rotate(45deg);
-}
-
-.initializing-logo i {
+  position: relative;
   display: block;
-
-  width: 4px;
-  height: 14px;
-
-  background: #111;
-
-  transform: rotate(-45deg);
+  flex: 0 0 auto;
+  transform: none;
+  border: 0;
 }
 
-.initializing-logo i:nth-child(2) {
-  height: 20px;
+.initializing-logo-bar {
+  position: absolute;
+  top: 2px;
+  width: 8px;
+  height: 29px;
+  border-radius: 2px;
+  transform: skewX(-19deg) rotate(1deg);
 }
 
-.initializing-logo i:nth-child(3) {
-  height: 9px;
+.initializing-logo-black {
+  left: 3px;
+  background: #111111;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
 }
 
-.initializing-header-status {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-
-  color: #777;
+.initializing-logo-purple {
+  left: 14px;
+  background: #a76cff;
 }
 
-.initializing-header-status span {
-  width: 7px;
-  height: 7px;
-
-  border-radius: 50%;
-
-  background: #92c83e;
-
-  box-shadow:
-    0 0 0 4px rgba(146, 200, 62, 0.12),
-    0 0 15px rgba(146, 200, 62, 0.7);
-
-  animation: pulse 1.2s infinite;
+.initializing-logo-lime {
+  left: 25px;
+  background: #a7f37a;
 }
 
 /* MAIN */

@@ -3933,3 +3933,346 @@ html, body, #root {
   .hackmate-candidate-score{width:max-content}
   .hackmate-matches-heading{flex-direction:column !important}
 }
+
+
+/* =========================================================
+   CAMPUSCODE STUDENT PANEL — FINAL READABILITY / UI PATCH
+   Added on top of the existing StudentPanel stylesheet.
+   Existing styles are preserved.
+   ========================================================= */
+
+/* Core readability: increase small UI text without changing the layout. */
+.student-sidebar nav button{
+  font-size:12px !important;
+}
+.sidebar-label{
+  font-size:9px !important;
+}
+.sidebar-user strong{
+  font-size:11px !important;
+}
+.sidebar-user small{
+  font-size:9px !important;
+}
+.logout-btn{
+  font-size:10px !important;
+}
+
+.student-topbar>div:first-child span{
+  font-size:8px !important;
+}
+.student-topbar>div:first-child strong{
+  font-size:13px !important;
+}
+.topbar-user{
+  font-size:11px !important;
+}
+
+.student-page-heading>div:first-child>span{
+  font-size:9px !important;
+}
+.student-page-heading p{
+  font-size:14px !important;
+  line-height:1.75 !important;
+}
+.student-counter strong{
+  font-size:48px !important;
+}
+.student-counter span{
+  font-size:8px !important;
+}
+
+.student-hero-copy>span{
+  font-size:9px !important;
+}
+.student-hero-copy p{
+  font-size:13px !important;
+}
+.student-primary-btn,
+.student-outline-btn,
+.identity-actions button,
+.back-btn{
+  font-size:10px !important;
+}
+
+.student-stat-card span,
+.student-stat-card small{
+  font-size:9px !important;
+}
+.student-stat-card strong{
+  font-size:38px !important;
+}
+
+.student-panel-title span{
+  font-size:8px !important;
+}
+.student-panel-title button{
+  font-size:9px !important;
+}
+.current-event-code{
+  font-size:9px !important;
+}
+.current-event h3{
+  font-size:28px !important;
+}
+.current-event-meta span{
+  font-size:9px !important;
+}
+.notification-mini strong{
+  font-size:11px !important;
+}
+.notification-mini small{
+  font-size:10px !important;
+}
+.notification-mini time{
+  font-size:8px !important;
+}
+
+/* Hackathons / registrations */
+.hackathon-card-top{
+  font-size:8px !important;
+}
+.hackathon-card h2{
+  font-size:30px !important;
+}
+.hackathon-card p{
+  font-size:12px !important;
+}
+.hackathon-data span{
+  font-size:10px !important;
+}
+.hackathon-data small{
+  font-size:8px !important;
+}
+.registration-card>div{
+  font-size:8px !important;
+}
+.registration-card h2{
+  font-size:32px !important;
+}
+.registration-card p{
+  font-size:11px !important;
+}
+.registration-detail-head span{
+  font-size:8px !important;
+}
+.registration-detail-head strong{
+  font-size:13px !important;
+}
+.round-number{
+  font-size:10px !important;
+}
+.round-row strong{
+  font-size:13px !important;
+}
+.round-row span{
+  font-size:10px !important;
+}
+.round-row>b{
+  font-size:8px !important;
+}
+.team-detail span{
+  font-size:8px !important;
+}
+.team-detail h3{
+  font-size:32px !important;
+}
+.team-detail p{
+  font-size:11px !important;
+}
+
+/* Profile / notifications */
+.profile-field span{
+  font-size:8px !important;
+}
+.profile-field strong{
+  font-size:13px !important;
+}
+.notification-full strong{
+  font-size:14px !important;
+}
+.notification-full p{
+  font-size:11px !important;
+}
+.notification-full time{
+  font-size:8px !important;
+}
+
+/* RuleBot */
+.rulebot-header strong{
+  font-size:14px !important;
+}
+.rulebot-header small{
+  font-size:8px !important;
+}
+.rulebot-select{
+  font-size:11px !important;
+}
+.rulebot-bubble{
+  font-size:12px !important;
+  line-height:1.75 !important;
+}
+.rulebot-input input{
+  font-size:12px !important;
+}
+.rulebot-suggestions button{
+  font-size:9px !important;
+}
+.rulebot-empty strong{
+  font-size:13px !important;
+}
+.rulebot-empty span{
+  font-size:10px !important;
+}
+
+/* HackMate */
+.hackmate-toolbar label{
+  font-size:8px !important;
+}
+.hackmate-toolbar select{
+  font-size:11px !important;
+}
+.hackmate-team-strip span{
+  font-size:8px !important;
+}
+.hackmate-team-strip strong{
+  font-size:13px !important;
+}
+.match-card h3{
+  font-size:20px !important;
+}
+.match-card>span{
+  font-size:8px !important;
+}
+.match-card p{
+  font-size:11px !important;
+}
+.match-skills b{
+  font-size:8px !important;
+}
+.match-modal>span{
+  font-size:8px !important;
+}
+.match-modal h2{
+  font-size:36px !important;
+}
+.match-modal p{
+  font-size:12px !important;
+}
+.match-modal small{
+  font-size:10px !important;
+}
+
+/* AI / feedback / leaderboard */
+.student-leaderboard-row>b,
+.student-leaderboard-row>strong{
+  font-size:10px !important;
+}
+.student-leaderboard-row b{
+  font-size:16px !important;
+}
+.student-leaderboard-row span{
+  font-size:11px !important;
+}
+.student-leaderboard-row em{
+  font-size:11px !important;
+}
+.student-result-row small.student-result-status{
+  font-size:9px !important;
+}
+.student-result-row p{
+  font-size:11px !important;
+}
+.student-feedback-row{
+  font-size:11px !important;
+}
+
+/* Profile editor */
+.profile-edit-field label{
+  font-size:8px !important;
+}
+.profile-edit-field input,
+.profile-edit-field textarea{
+  font-size:12px !important;
+}
+.profile-message{
+  font-size:9px !important;
+}
+.profile-skill-suggestions button{
+  font-size:10px !important;
+}
+
+/* ---------------------------------------------------------
+   Deduplicated hackathon presentation
+   --------------------------------------------------------- */
+.student-hackathon-list,
+.hackathon-grid,
+.registration-grid{
+  min-width:0;
+}
+
+/* ---------------------------------------------------------
+   Completion status
+   --------------------------------------------------------- */
+.student-completed-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 9px;
+  border:1px solid #d8e2bd;
+  border-radius:6px;
+  background:#f1f6e5;
+  color:#5d741c;
+  font:900 9px Inter,sans-serif;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+}
+
+.student-completed-badge::before{
+  content:"✓";
+  font-size:10px;
+}
+
+.student-completed-card{
+  border-color:#d8e2bd !important;
+}
+
+/* ---------------------------------------------------------
+   Mobile readability
+   --------------------------------------------------------- */
+@media(max-width:780px){
+  .student-sidebar nav button{
+    font-size:12px !important;
+  }
+
+  .student-page-heading p{
+    font-size:12px !important;
+  }
+
+  .student-hero-copy p{
+    font-size:12px !important;
+  }
+
+  .student-stat-card span,
+  .student-stat-card small{
+    font-size:9px !important;
+  }
+
+  .hackathon-card h2,
+  .registration-card h2{
+    font-size:27px !important;
+  }
+
+  .hackathon-card p,
+  .registration-card p{
+    font-size:11px !important;
+  }
+
+  .rulebot-bubble{
+    font-size:11px !important;
+  }
+
+  .student-leaderboard-row b{
+    font-size:14px !important;
+  }
+}

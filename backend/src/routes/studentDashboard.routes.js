@@ -11,11 +11,17 @@ import {
 
 const router = express.Router();
 
-/*
-  GET STUDENT DASHBOARD
+/* =========================================================
+   STUDENT DASHBOARD
 
-  GET /api/student/dashboard
-*/
+   Mounted by server.js as:
+
+   /api/student/dashboard
+
+   Therefore:
+
+   GET /api/student/dashboard
+========================================================= */
 
 router.get(
   "/",
