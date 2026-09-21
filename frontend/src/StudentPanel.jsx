@@ -2107,11 +2107,14 @@ function StudentResultsPage() {
             onChange={(e) => setSelected(e.target.value)}
           >
             <option value="">No hackathons available</option>
-            {hackathons.map((h) => (
-              <option key={h.id} value={h.id}>
-                {value(h.title, h.name)}
+            {hackathons.map((h) => {
+              const id = h.hackathon_id || h.hackathon?.id || h.id;
+              return (
+              <option key={id} value={id}>
+                {value(h.title, h.name, h.hackathon?.title, h.hackathon_name)}
               </option>
-            ))}
+              );
+            })}
           </select>
         </div>
 

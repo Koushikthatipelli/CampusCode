@@ -2706,3 +2706,33 @@
     font-size:8px !important;
   }
 }
+
+/* ============================================================
+   FINAL ADMIN POLISH / MONITORING / BLUEPRINT
+   ============================================================ */
+.admin-app,
+.admin-app * { scrollbar-width:thin; scrollbar-color:#5e7185 rgba(7,12,18,.55); }
+.admin-app ::-webkit-scrollbar { width:8px; height:8px; }
+.admin-app ::-webkit-scrollbar-track { background:rgba(5,10,15,.55); }
+.admin-app ::-webkit-scrollbar-thumb { background:#4f6378; border-radius:999px; border:2px solid rgba(5,10,15,.55); }
+.admin-app ::-webkit-scrollbar-thumb:hover { background:#74899f; }
+
+.admin-activity-shell { overflow:hidden; }
+.admin-activity-list { display:grid; gap:8px; }
+.admin-activity-row { min-height:72px; display:grid; grid-template-columns:38px minmax(0,1fr) auto; align-items:center; gap:12px; padding:13px 14px; border:1px solid rgba(255,255,255,.055); border-radius:13px; background:rgba(255,255,255,.018); }
+.admin-activity-row:hover { border-color:rgba(126,214,255,.16); background:rgba(126,214,255,.025); }
+.admin-activity-icon { width:34px; height:34px; display:grid; place-items:center; border-radius:10px; color:#79d6ff; background:rgba(121,214,255,.08); }
+.admin-activity-row strong { display:block; color:#f2f6fa; font-size:12px; font-weight:800; overflow-wrap:anywhere; }
+.admin-activity-row p { margin:4px 0 0; color:#7e8a96; font-size:10px; }
+.admin-activity-row time { color:#687581; font-size:9px; white-space:nowrap; }
+
+.admin-version-detail-card { min-height:240px; }
+.admin-version-detail-card .admin-card-head h3 { font-size:20px; }
+.admin-version-detail-card button { min-height:38px; }
+.admin-blueprint-back { cursor:pointer; }
+.admin-blueprint-breadcrumb { flex-wrap:wrap; }
+
+@media (max-width:700px) {
+  .admin-activity-row { grid-template-columns:34px minmax(0,1fr); }
+  .admin-activity-row time { grid-column:2; }
+}

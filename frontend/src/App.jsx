@@ -17,6 +17,7 @@ import Initializing from "./Initializing";
 import StudentPanel from "./StudentPanel";
 import OrganizerPanel from "./OrganizerPanel";
 import AdminPanel from "./AdminPanel";
+import PublicDigitalCard from "./pages/PublicDigitalCard";
 
 
 
@@ -353,6 +354,16 @@ function App() {
           element={
             <Initializing />
           }
+        />
+
+
+        {/* ===================================================
+            PUBLIC QR DIGITAL CARD
+        =================================================== */}
+
+        <Route
+          path="/u/:campusId"
+          element={<PublicDigitalCard />}
         />
 
 

@@ -2545,7 +2545,22 @@ function ActivityPage() {
     <PageTitle eyebrow="SYSTEM / ACTIVITY" title={<>System <span>activity.</span></>} description="Operational events and platform activity from the existing administration API." />
     <div className="admin-panel-card admin-activity-shell">
       <div className="admin-card-head"><div><span className="admin-kicker">LIVE ACTIVITY</span><h3>Platform event stream</h3></div><button className="event-action neutral" onClick={load}><RefreshCw size={14}/> Refresh</button></div>
-      {loading ? <div className="admin-loading"><LoaderCircle className="spin" size={20}/> Loading activity...</div> : error ? <ErrorBox message={error}/> : items.length ? <div className="admin-activity-list">{items.map((item,i)=><div className="admin-activity-row" key={item.id||i}><span className="admin-activity-icon"><Activity size={15}/></span><div><strong>{value(item.title || item.action || item.event || item.type, "SYSTEM EVENT")}</strong><p>{value(item.description || item.message || item.details, "Activity recorded by CampusCode.")}</p></div><time>{formatDate(item.created_at || item.createdAt || item.timestamp)} {formatTime(item.created_at || item.createdAt || item.timestamp)}</time></div>)}</div> : <Empty title="NO SYSTEM ACTIVITY" text="The backend returned no activity records." />}
+      {loading ? <div className="admin-loading"><LoaderCircle className="spin" size={20}/> Loading activity...</div> : error ? <ErrorBox message={error}/> : items.length ? <div className="admin-activity-list">{items.map((item, i) => {
+        const timestamp = item.request_id ? item.created_at : (item.created_at || item.createdAt || item.timestamp);
+        const status = Number(item.status_code ?? item.status ?? 0);
+        const statusLabel = status >= 500 ? "SERVER ERROR" : status >= 400 ? "CLIENT ERROR" : status >= 200 ? "SUCCESS" : "REQUEST";
+        const requestLabel = item.endpoint
+          ? `${String(item.method || "REQUEST").toUpperCase()} ${item.endpoint}`
+          : value(item.title || item.action || item.event || item.type, "SYSTEM EVENT");
+        const description = item.endpoint
+          ? `${statusLabel} • ${item.response_time_ms != null ? `${item.response_time_ms} ms` : "response time unavailable"}${item.user_role ? ` • ${item.user_role}` : ""}`
+          : value(item.description || item.message || item.details, "Activity recorded by CampusCode.");
+        return <div className="admin-activity-row" key={item.request_id || item.id || i}>
+          <span className="admin-activity-icon"><Activity size={15}/></span>
+          <div><strong>{requestLabel}</strong><p>{description}</p></div>
+          <time>{formatDate(timestamp)} {formatTime(timestamp)}</time>
+        </div>;
+      })}</div> : <Empty title="NO SYSTEM ACTIVITY" text="The backend returned no request activity records." />}
     </div>
   </section>;
 }
@@ -2675,6 +2690,19 @@ function adminBlueprintIcon(type) {
   if (t.includes("portal") || t.includes("page") || t.includes("application")) return Globe2;
   if (t.includes("system")) return Network;
   return Boxes;
+}
+
+function findBlueprintParentId(childId) {
+  for (const [id, node] of Object.entries(ADMIN_BLUEPRINT)) {
+    if ((node.children || []).includes(childId)) return id;
+  }
+  for (const [id, node] of Object.entries(ADMIN_BLUEPRINT)) {
+    for (const nestedId of node.children || []) {
+      const nested = adminBlueprintNode(nestedId);
+      if ((nested.children || []).includes(childId)) return nestedId;
+    }
+  }
+  return "campuscode";
 }
 
 function AdminBlueprintNode({ node, x, y, selected, onClick }) {
@@ -2899,8 +2927,8 @@ function SystemBlueprintPage() {
   };
   const goBack = () => {
     if (rootId === "campuscode") return;
-    const parent = Object.values(ADMIN_BLUEPRINT).find((n) => (n.children || []).includes(rootId));
-    setRootId(parent?.id || "campuscode"); setSelectedNode(null); setNodeDetails(null); setQuery(""); setZoom(1);
+    const parentId = findBlueprintParentId(rootId);
+    setRootId(parentId); setSelectedNode(null); setNodeDetails(null); setQuery(""); setZoom(1);
   };
   const refreshMonitoring = async () => {
     if (busy) return;

@@ -1,0 +1,998 @@
+/* ============================================================
+   CAMPUSCODE PUBLIC DIGITAL CARD
+   QR VERIFICATION PAGE
+   ============================================================ */
+
+.public-card-page {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  background:
+    radial-gradient(
+      circle at 15% 15%,
+      rgba(153, 51, 255, 0.14),
+      transparent 32%
+    ),
+    radial-gradient(
+      circle at 85% 20%,
+      rgba(190, 255, 70, 0.08),
+      transparent 28%
+    ),
+    #08090b;
+  color: #ffffff;
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
+}
+
+.public-card-background {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(
+      rgba(255, 255, 255, 0.025) 1px,
+      transparent 1px
+    ),
+    linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0.025) 1px,
+      transparent 1px
+    );
+  background-size: 42px 42px;
+}
+
+
+/* ============================================================
+   SHELL
+   ============================================================ */
+
+.public-card-shell {
+  position: relative;
+  z-index: 1;
+
+  width: min(760px, calc(100% - 32px));
+
+  margin: 0 auto;
+  padding: 36px 0 28px;
+}
+
+
+/* ============================================================
+   BRAND
+   ============================================================ */
+
+.public-card-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 13px;
+
+  margin-bottom: 28px;
+}
+
+.public-card-logo {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+
+  transform: skewX(-14deg);
+}
+
+.public-card-logo span {
+  display: block;
+
+  width: 7px;
+  height: 30px;
+
+  border-radius: 2px;
+}
+
+.public-card-logo span:nth-child(1) {
+  background: #111111;
+}
+
+.public-card-logo span:nth-child(2) {
+  background: #8b32e8;
+}
+
+.public-card-logo span:nth-child(3) {
+  background: #baff39;
+}
+
+.public-card-brand-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.public-card-brand-text strong {
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.public-card-brand-text span {
+  margin-top: 5px;
+
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+
+  color: #8d929b;
+}
+
+
+/* ============================================================
+   MAIN DIGITAL CARD
+   ============================================================ */
+
+.public-digital-card {
+  position: relative;
+
+  overflow: hidden;
+
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 24px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.055),
+      rgba(255, 255, 255, 0.018)
+    ),
+    #0d0f12;
+
+  box-shadow:
+    0 35px 100px rgba(0, 0, 0, 0.55),
+    0 0 70px rgba(142, 47, 230, 0.07);
+}
+
+.public-digital-card::before {
+  content: "";
+
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+
+  height: 3px;
+
+  background: linear-gradient(
+    90deg,
+    #111111 0%,
+    #8b32e8 48%,
+    #baff39 100%
+  );
+}
+
+
+/* ============================================================
+   TOP
+   ============================================================ */
+
+.public-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+
+  gap: 20px;
+
+  padding: 34px 34px 28px;
+
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.public-card-eyebrow {
+  display: block;
+
+  margin-bottom: 8px;
+
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+
+  color: #969ba5;
+}
+
+.public-card-top h1 {
+  margin: 0;
+
+  font-size: 27px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.public-card-verified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  flex-shrink: 0;
+
+  padding: 9px 13px;
+
+  border: 1px solid rgba(186, 255, 57, 0.2);
+  border-radius: 999px;
+
+  background: rgba(186, 255, 57, 0.07);
+
+  color: #baff39;
+
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.public-card-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 18px;
+  height: 18px;
+
+  border-radius: 50%;
+
+  background: #baff39;
+  color: #08090b;
+
+  font-size: 12px;
+  font-weight: 1000;
+}
+
+
+/* ============================================================
+   PROFILE
+   ============================================================ */
+
+.public-card-profile {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+
+  padding: 32px 34px;
+}
+
+.public-card-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 112px;
+  height: 112px;
+
+  overflow: hidden;
+
+  border: 2px solid rgba(186, 255, 57, 0.4);
+  border-radius: 50%;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(139, 50, 232, 0.3),
+      rgba(186, 255, 57, 0.08)
+    );
+
+  box-shadow:
+    0 0 0 7px rgba(255, 255, 255, 0.02);
+}
+
+.public-card-avatar img {
+  width: 100%;
+  height: 100%;
+
+  object-fit: cover;
+}
+
+.public-card-avatar span {
+  font-size: 30px;
+  font-weight: 900;
+
+  color: #ffffff;
+}
+
+.public-card-profile-info {
+  min-width: 0;
+}
+
+.public-card-profile-label {
+  display: block;
+
+  margin-bottom: 7px;
+
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+
+  color: #8e949e;
+}
+
+.public-card-profile-info h2 {
+  margin: 0 0 13px;
+
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 900;
+  letter-spacing: -0.035em;
+
+  overflow-wrap: anywhere;
+}
+
+.public-card-campus-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  flex-wrap: wrap;
+}
+
+.public-card-campus-id span {
+  font-size: 12px;
+  color: #7f858e;
+}
+
+.public-card-campus-id strong {
+  padding: 5px 9px;
+
+  border-radius: 6px;
+
+  background: rgba(255, 255, 255, 0.05);
+
+  color: #dce0e5;
+
+  font-size: 12px;
+  font-family: monospace;
+  letter-spacing: 0.04em;
+}
+
+
+/* ============================================================
+   VERIFICATION
+   ============================================================ */
+
+.public-card-verification {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  margin: 0 34px 28px;
+  padding: 17px;
+
+  border: 1px solid rgba(186, 255, 57, 0.16);
+  border-radius: 13px;
+
+  background: rgba(186, 255, 57, 0.045);
+}
+
+.public-card-verification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  flex-shrink: 0;
+
+  width: 38px;
+  height: 38px;
+
+  border-radius: 50%;
+
+  background: #baff39;
+  color: #090a0b;
+
+  font-size: 19px;
+  font-weight: 1000;
+}
+
+.public-card-verification div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.public-card-verification strong {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.public-card-verification span {
+  font-size: 12px;
+  line-height: 1.5;
+
+  color: #9298a2;
+}
+
+
+/* ============================================================
+   SECTIONS
+   ============================================================ */
+
+.public-card-section {
+  padding: 0 34px 28px;
+}
+
+.public-card-section-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-bottom: 13px;
+}
+
+.public-card-section-heading span {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+
+  color: #aeb3bb;
+}
+
+.public-card-section-heading small {
+  font-size: 11px;
+  color: #666c75;
+}
+
+
+/* ============================================================
+   STATISTICS
+   ============================================================ */
+
+.public-card-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  gap: 10px;
+}
+
+.public-card-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 100px;
+  padding: 16px;
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 13px;
+
+  background: rgba(255, 255, 255, 0.025);
+
+  text-align: center;
+}
+
+.public-card-stat strong {
+  margin-bottom: 6px;
+
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 900;
+
+  color: #ffffff;
+}
+
+.public-card-stat span {
+  font-size: 11px;
+  font-weight: 700;
+
+  color: #7f858f;
+}
+
+
+/* ============================================================
+   SKILLS
+   ============================================================ */
+
+.public-card-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.public-card-skills span {
+  padding: 8px 11px;
+
+  border: 1px solid rgba(139, 50, 232, 0.24);
+  border-radius: 7px;
+
+  background: rgba(139, 50, 232, 0.08);
+
+  color: #d8b7f5;
+
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
+/* ============================================================
+   DETAILS
+   ============================================================ */
+
+.public-card-details {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+
+  margin: 0 34px;
+
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.public-card-details > div {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  padding: 18px 14px;
+}
+
+.public-card-details > div + div {
+  border-left: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.public-card-details span {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+
+  color: #686e77;
+}
+
+.public-card-details strong {
+  font-size: 12px;
+  font-weight: 800;
+
+  color: #dfe3e7;
+}
+
+.public-card-details .public-card-active {
+  color: #baff39;
+}
+
+
+/* ============================================================
+   VERIFIED FOOTER
+   ============================================================ */
+
+.public-card-verified-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  margin: 28px 34px 32px;
+  padding: 14px;
+
+  border-radius: 11px;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.public-card-footer-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 32px;
+  height: 32px;
+
+  border-radius: 50%;
+
+  background: rgba(186, 255, 57, 0.12);
+
+  color: #baff39;
+
+  font-weight: 1000;
+}
+
+.public-card-verified-footer div:last-child {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.public-card-verified-footer strong {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.public-card-verified-footer span {
+  font-size: 10px;
+  color: #707680;
+}
+
+
+/* ============================================================
+   SECURITY NOTE
+   ============================================================ */
+
+.public-card-security-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+
+  width: min(620px, 100%);
+
+  margin: 15px auto 0;
+  padding: 0 10px;
+
+  color: #686e77;
+}
+
+.public-card-security-note span {
+  font-size: 12px;
+}
+
+.public-card-security-note p {
+  margin: 0;
+
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+
+/* ============================================================
+   LOADING
+   ============================================================ */
+
+.public-card-status-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  padding: 60px 34px;
+
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+
+  background: rgba(13, 15, 18, 0.92);
+
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.5);
+}
+
+.public-card-loading-card h1,
+.public-card-error-card h1 {
+  margin: 18px 0 8px;
+
+  font-size: 25px;
+  font-weight: 900;
+
+  text-align: center;
+}
+
+.public-card-loading-card p,
+.public-card-error-card > p {
+  max-width: 470px;
+  margin: 0;
+
+  font-size: 13px;
+  line-height: 1.65;
+
+  color: #858b95;
+
+  text-align: center;
+}
+
+.public-card-spinner {
+  width: 42px;
+  height: 42px;
+
+  border: 3px solid rgba(255, 255, 255, 0.08);
+  border-top-color: #baff39;
+
+  border-radius: 50%;
+
+  animation: publicCardSpin 0.8s linear infinite;
+}
+
+@keyframes publicCardSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+/* ============================================================
+   ERROR
+   ============================================================ */
+
+.public-card-status-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 66px;
+  height: 66px;
+
+  border-radius: 50%;
+
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.public-card-status-icon-error {
+  background: rgba(255, 80, 80, 0.1);
+
+  border: 1px solid rgba(255, 80, 80, 0.2);
+
+  color: #ff7070;
+}
+
+.public-card-status-label {
+  margin-top: 20px;
+
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.16em;
+}
+
+.public-card-status-label.error {
+  color: #ff7070;
+}
+
+.public-card-error-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  width: min(440px, 100%);
+
+  margin-top: 25px;
+  padding: 13px 15px;
+
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 9px;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.public-card-error-code span {
+  font-size: 11px;
+  color: #777d86;
+}
+
+.public-card-error-code strong {
+  max-width: 55%;
+
+  overflow-wrap: anywhere;
+
+  color: #dfe3e7;
+
+  font-size: 11px;
+  font-family: monospace;
+}
+
+.public-card-help-box {
+  width: min(440px, 100%);
+
+  margin-top: 10px;
+  padding: 15px;
+
+  border-radius: 9px;
+
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.public-card-help-box strong {
+  display: block;
+
+  margin-bottom: 6px;
+
+  font-size: 12px;
+}
+
+.public-card-help-box p {
+  margin: 0;
+
+  color: #777d86;
+
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.public-card-home-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  min-height: 42px;
+
+  margin-top: 22px;
+  padding: 0 20px;
+
+  border: 1px solid rgba(186, 255, 57, 0.22);
+  border-radius: 9px;
+
+  background: rgba(186, 255, 57, 0.08);
+
+  color: #baff39;
+
+  font-size: 12px;
+  font-weight: 800;
+
+  text-decoration: none;
+
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
+}
+
+.public-card-home-button:hover {
+  background: rgba(186, 255, 57, 0.14);
+  transform: translateY(-1px);
+}
+
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+.public-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 15px;
+
+  margin-top: 25px;
+  padding: 0 4px;
+
+  color: #5e646d;
+
+  font-size: 10px;
+}
+
+
+/* ============================================================
+   MOBILE
+   ============================================================ */
+
+@media (max-width: 640px) {
+  .public-card-shell {
+    width: min(100% - 20px, 760px);
+
+    padding-top: 22px;
+  }
+
+  .public-card-brand {
+    margin-bottom: 20px;
+  }
+
+  .public-card-brand-text strong {
+    font-size: 16px;
+  }
+
+  .public-card-top {
+    flex-direction: column;
+
+    padding: 25px 20px 22px;
+  }
+
+  .public-card-top h1 {
+    font-size: 23px;
+  }
+
+  .public-card-profile {
+    align-items: flex-start;
+
+    padding: 25px 20px;
+
+    gap: 16px;
+  }
+
+  .public-card-avatar {
+    width: 82px;
+    height: 82px;
+  }
+
+  .public-card-avatar span {
+    font-size: 23px;
+  }
+
+  .public-card-profile-info h2 {
+    font-size: 23px;
+  }
+
+  .public-card-verification {
+    margin: 0 20px 24px;
+  }
+
+  .public-card-section {
+    padding: 0 20px 24px;
+  }
+
+  .public-card-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .public-card-stats {
+    gap: 7px;
+  }
+
+  .public-card-stat {
+    min-height: 86px;
+    padding: 10px 5px;
+  }
+
+  .public-card-stat strong {
+    font-size: 22px;
+  }
+
+  .public-card-stat span {
+    font-size: 9px;
+  }
+
+  .public-card-details {
+    grid-template-columns: 1fr;
+
+    margin: 0 20px;
+  }
+
+  .public-card-details > div {
+    padding: 14px 0;
+  }
+
+  .public-card-details > div + div {
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    border-left: 0;
+  }
+
+  .public-card-verified-footer {
+    margin: 22px 20px 25px;
+  }
+
+  .public-card-security-note {
+    padding: 0 4px;
+  }
+
+  .public-card-footer {
+    flex-direction: column;
+
+    justify-content: center;
+
+    text-align: center;
+  }
+
+  .public-card-status-card {
+    padding: 45px 20px;
+  }
+
+  .public-card-loading-card h1,
+  .public-card-error-card h1 {
+    font-size: 21px;
+  }
+}
+
+@media (max-width: 390px) {
+  .public-card-profile {
+    flex-direction: column;
+    align-items: center;
+
+    text-align: center;
+  }
+
+  .public-card-campus-id {
+    justify-content: center;
+  }
+
+  .public-card-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .public-card-stat {
+    min-height: 72px;
+  }
+}
