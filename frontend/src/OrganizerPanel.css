@@ -2375,3 +2375,645 @@ body,
 .organizer-page .organizer-submission-modal .organizer-review-details{padding:26px 38px 0 !important;display:grid !important;gap:14px !important}.organizer-page .organizer-submission-modal .organizer-review-detail-card{padding:22px !important;border:1px solid #e2e8f0 !important;border-radius:18px !important;background:#fff !important;box-shadow:0 8px 24px rgba(15,23,42,.045) !important}.organizer-page .organizer-submission-modal .organizer-review-detail-card>span{font-size:11px !important;letter-spacing:.14em !important;color:#64748b !important}.organizer-page .organizer-submission-modal .organizer-review-detail-card p{font-size:15px !important;line-height:1.85 !important;color:#334155 !important;margin:0 !important;white-space:pre-wrap !important}.organizer-page .organizer-submission-modal .organizer-review-detail-card a{font-size:14px !important;line-height:1.6 !important;color:#15803d !important}
 .organizer-page .organizer-submission-modal .organizer-existing-feedback{margin:20px 38px 0 !important;padding:20px !important;border:1px solid #e2e8f0 !important;border-radius:18px !important;background:#fff !important}.organizer-page .organizer-submission-modal .organizer-existing-feedback p{font-size:14px !important;line-height:1.75 !important;color:#475569 !important}.organizer-page .organizer-submission-modal .organizer-review-form{flex:0 0 auto;margin-top:24px !important;padding:26px 38px 34px !important;background:#fff !important;border-top:1px solid #e2e8f0 !important}.organizer-page .organizer-submission-modal .org-input{font-size:14px !important;line-height:1.6 !important;color:#0f172a !important;background:#f8fafc !important}.organizer-page .organizer-submission-modal .organizer-review-actions button{min-height:46px !important;padding:0 18px !important;font-size:12px !important}
 @media(max-width:760px){.organizer-page .organizer-review-modal-backdrop{padding:12px !important}.organizer-page .organizer-review-modal.organizer-submission-modal{width:calc(100vw - 24px) !important;max-height:calc(100dvh - 24px) !important;border-radius:20px !important}.organizer-page .organizer-submission-modal .organizer-review-modal-head{padding:24px 20px 20px !important}.organizer-page .organizer-submission-modal .organizer-review-status-row{padding:13px 20px !important;flex-wrap:wrap !important}.organizer-page .organizer-submission-modal .organizer-ai-panel{margin:18px 20px 0 !important;padding:18px !important}.organizer-page .organizer-submission-modal .organizer-review-details{padding:20px 20px 0 !important}.organizer-page .organizer-submission-modal .organizer-review-detail-card{padding:18px !important}.organizer-page .organizer-submission-modal .organizer-review-form{padding:22px 20px 26px !important}.organizer-page .organizer-submission-modal .organizer-existing-feedback{margin:18px 20px 0 !important}.organizer-page .organizer-submission-modal .organizer-ai-score-hero{grid-template-columns:1fr !important}.organizer-page .organizer-submission-modal .organizer-ai-metrics{grid-template-columns:repeat(2,minmax(0,1fr)) !important}.organizer-page .organizer-submission-modal .organizer-ai-insight-grid{grid-template-columns:1fr !important}}
+
+/* ============================================================
+   FINAL — VIEWPORT-LEVEL SUBMISSION DIALOG
+   The modal is rendered through a React portal, so it is no
+   longer trapped/clipped by the Organizer content/sidebar.
+============================================================ */
+
+.organizer-review-modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 99999 !important;
+  width: 100vw !important;
+  height: 100dvh !important;
+  min-height: 100dvh !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 24px !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  background: rgba(15, 23, 42, 0.52) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+}
+
+.organizer-review-modal.organizer-submission-modal {
+  position: relative !important;
+  inset: auto !important;
+  z-index: auto !important;
+  box-sizing: border-box !important;
+  flex: 0 1 auto !important;
+  width: min(1180px, calc(100vw - 48px)) !important;
+  max-width: 1180px !important;
+  height: min(900px, calc(100dvh - 48px)) !important;
+  max-height: calc(100dvh - 48px) !important;
+  min-height: 0 !important;
+  margin: 0 auto !important;
+  padding: 0 !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-gutter: stable !important;
+  border: 1px solid #dbe3ec !important;
+  border-radius: 26px !important;
+  background: #f8fafc !important;
+  color: #0f172a !important;
+  box-shadow: 0 36px 120px rgba(15, 23, 42, 0.32) !important;
+}
+
+.organizer-review-modal.organizer-submission-modal::-webkit-scrollbar {
+  width: 10px !important;
+}
+
+.organizer-review-modal.organizer-submission-modal::-webkit-scrollbar-track {
+  background: #eef2f7 !important;
+  border-radius: 999px !important;
+}
+
+.organizer-review-modal.organizer-submission-modal::-webkit-scrollbar-thumb {
+  background: #c4ceda !important;
+  border: 2px solid #eef2f7 !important;
+  border-radius: 999px !important;
+}
+
+.organizer-review-modal.organizer-submission-modal::-webkit-scrollbar-thumb:hover {
+  background: #aeb9c7 !important;
+}
+
+.organizer-submission-modal .organizer-review-modal-head {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+  padding: 28px 34px 22px !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+.organizer-submission-modal .organizer-review-modal-head > div:first-child {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+.organizer-submission-modal .organizer-review-modal-head > div > span {
+  display: block !important;
+  margin: 0 0 10px !important;
+  color: #16a34a !important;
+  font-size: 11px !important;
+  line-height: 1.2 !important;
+  font-weight: 900 !important;
+  letter-spacing: 0.16em !important;
+}
+
+.organizer-submission-modal .organizer-review-modal-head h2 {
+  max-width: 100% !important;
+  margin: 0 0 8px !important;
+  color: #0f172a !important;
+  font-size: clamp(30px, 4vw, 48px) !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.055em !important;
+  overflow-wrap: anywhere !important;
+}
+
+.organizer-submission-modal .organizer-review-modal-head p {
+  margin: 0 !important;
+  color: #64748b !important;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.organizer-submission-modal .organizer-review-close {
+  position: sticky !important;
+  top: 0 !important;
+  flex: 0 0 46px !important;
+  width: 46px !important;
+  height: 46px !important;
+  border: 1px solid #dbe3ec !important;
+  border-radius: 14px !important;
+  background: #f8fafc !important;
+  color: #475569 !important;
+  box-shadow: 0 6px 18px rgba(15,23,42,.06) !important;
+}
+
+.organizer-submission-modal .organizer-review-close:hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.organizer-submission-modal .organizer-review-status-row {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 12px 22px !important;
+  padding: 15px 34px !important;
+  margin: 0 !important;
+  background: #f1f5f9 !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+}
+
+.organizer-submission-modal .organizer-review-status-row b {
+  color: #0f172a !important;
+}
+
+.organizer-submission-modal .organizer-ai-panel {
+  box-sizing: border-box !important;
+  width: calc(100% - 68px) !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 24px 34px 0 !important;
+  padding: 24px !important;
+  border: 1px solid #ccebd9 !important;
+  border-radius: 22px !important;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 55%, #f8fafc 100%) !important;
+  color: #0f172a !important;
+  overflow: hidden !important;
+}
+
+.organizer-submission-modal .organizer-ai-panel-head {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+  padding-bottom: 20px !important;
+  border-bottom: 1px solid #dcefe3 !important;
+}
+
+.organizer-submission-modal .organizer-ai-panel-head > div {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+.organizer-submission-modal .organizer-ai-panel-head span {
+  display: block !important;
+  margin-bottom: 7px !important;
+  color: #15803d !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: .15em !important;
+}
+
+.organizer-submission-modal .organizer-ai-panel-head strong {
+  display: block !important;
+  color: #14532d !important;
+  font-size: 20px !important;
+  line-height: 1.35 !important;
+}
+
+.organizer-submission-modal .organizer-ai-panel-head .ai-analyze-btn {
+  flex: 0 0 auto !important;
+  white-space: nowrap !important;
+  min-height: 44px !important;
+  padding: 0 18px !important;
+  border-radius: 12px !important;
+  font-size: 13px !important;
+}
+
+.organizer-submission-modal .organizer-ai-score-hero {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr) !important;
+  gap: 16px !important;
+  margin-top: 20px !important;
+}
+
+.organizer-submission-modal .organizer-ai-score-hero > div,
+.organizer-submission-modal .organizer-ai-recommendation {
+  box-sizing: border-box !important;
+  min-width: 0 !important;
+  min-height: 150px !important;
+  padding: 24px !important;
+  border: 1px solid #dce5df !important;
+  border-radius: 18px !important;
+  background: #ffffff !important;
+}
+
+.organizer-submission-modal .organizer-ai-score-hero span,
+.organizer-submission-modal .organizer-ai-recommendation span {
+  display: block !important;
+  margin-bottom: 8px !important;
+  color: #64748b !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: .14em !important;
+}
+
+.organizer-submission-modal .organizer-ai-score-hero strong {
+  display: block !important;
+  color: #16a34a !important;
+  font-size: clamp(56px, 7vw, 84px) !important;
+  line-height: .9 !important;
+  letter-spacing: -.07em !important;
+}
+
+.organizer-submission-modal .organizer-ai-score-hero small {
+  display: block !important;
+  margin-top: 8px !important;
+  color: #94a3b8 !important;
+  font-size: 14px !important;
+}
+
+.organizer-submission-modal .organizer-ai-recommendation {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+}
+
+.organizer-submission-modal .organizer-ai-recommendation b {
+  color: #0f172a !important;
+  font-size: clamp(28px, 4vw, 44px) !important;
+  line-height: 1.05 !important;
+  overflow-wrap: anywhere !important;
+}
+
+.organizer-submission-modal .organizer-ai-metrics {
+  display: grid !important;
+  grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin-top: 16px !important;
+}
+
+.organizer-submission-modal .organizer-ai-metrics > div {
+  min-width: 0 !important;
+  padding: 16px !important;
+  border: 1px solid #dce5df !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+}
+
+.organizer-submission-modal .organizer-ai-metrics span {
+  display: block !important;
+  margin-bottom: 8px !important;
+  color: #64748b !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+}
+
+.organizer-submission-modal .organizer-ai-metrics b {
+  color: #0f172a !important;
+  font-size: 26px !important;
+}
+
+.organizer-submission-modal .organizer-ai-response-box {
+  box-sizing: border-box !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin-top: 16px !important;
+  padding: 20px !important;
+  border: 1px solid #dce5df !important;
+  border-radius: 16px !important;
+  background: #ffffff !important;
+}
+
+.organizer-submission-modal .organizer-ai-response-title {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  margin-bottom: 12px !important;
+}
+
+.organizer-submission-modal .organizer-ai-response-title > span:first-child {
+  color: #475569 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: .14em !important;
+}
+
+.organizer-submission-modal .organizer-ai-live-dot {
+  padding: 6px 10px !important;
+  border-radius: 999px !important;
+  background: #ecfdf5 !important;
+  color: #15803d !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: .12em !important;
+}
+
+.organizer-submission-modal .organizer-ai-response-box p {
+  margin: 0 !important;
+  color: #334155 !important;
+  font-size: 16px !important;
+  line-height: 1.8 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+
+.organizer-submission-modal .organizer-ai-insight-grid {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 12px !important;
+  margin-top: 16px !important;
+}
+
+.organizer-submission-modal .organizer-ai-insight {
+  min-width: 0 !important;
+  padding: 18px !important;
+  border: 1px solid #dce5df !important;
+  border-radius: 15px !important;
+  background: #ffffff !important;
+}
+
+.organizer-submission-modal .organizer-ai-insight > span {
+  display: block !important;
+  margin-bottom: 10px !important;
+  color: #475569 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: .13em !important;
+}
+
+.organizer-submission-modal .organizer-ai-insight ul {
+  margin: 0 !important;
+  padding-left: 20px !important;
+}
+
+.organizer-submission-modal .organizer-ai-insight li {
+  margin: 7px 0 !important;
+  color: #475569 !important;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
+}
+
+.organizer-submission-modal .organizer-review-details {
+  box-sizing: border-box !important;
+  width: calc(100% - 68px) !important;
+  margin: 24px 34px 0 !important;
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+}
+
+.organizer-submission-modal .organizer-review-detail-card {
+  min-width: 0 !important;
+  padding: 20px !important;
+  border: 1px solid #dbe3ec !important;
+  border-radius: 17px !important;
+  background: #ffffff !important;
+}
+
+.organizer-submission-modal .organizer-review-detail-wide {
+  grid-column: 1 / -1 !important;
+}
+
+.organizer-submission-modal .organizer-review-detail-card > span,
+.organizer-submission-modal .organizer-existing-feedback > span {
+  display: block !important;
+  margin-bottom: 10px !important;
+  color: #94a3b8 !important;
+  font-size: 10px !important;
+  font-weight: 900 !important;
+  letter-spacing: .14em !important;
+}
+
+.organizer-submission-modal .organizer-review-detail-card p {
+  margin: 0 !important;
+  color: #475569 !important;
+  font-size: 15px !important;
+  line-height: 1.75 !important;
+  white-space: pre-wrap !important;
+  overflow-wrap: anywhere !important;
+}
+
+.organizer-submission-modal .organizer-review-detail-card a {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  max-width: 100% !important;
+  color: #15803d !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  text-decoration: none !important;
+  overflow-wrap: anywhere !important;
+}
+
+.organizer-submission-modal .organizer-existing-feedback {
+  box-sizing: border-box !important;
+  width: calc(100% - 68px) !important;
+  margin: 18px 34px 0 !important;
+  padding: 18px 20px !important;
+  border: 1px solid #dce5df !important;
+  border-left: 4px solid #16a34a !important;
+  border-radius: 15px !important;
+  background: #f8fafc !important;
+}
+
+.organizer-submission-modal .organizer-existing-feedback p {
+  margin: 0 !important;
+  color: #475569 !important;
+  font-size: 14px !important;
+  line-height: 1.7 !important;
+  white-space: pre-wrap !important;
+}
+
+.organizer-submission-modal .organizer-manual-review-panel {
+  box-sizing: border-box !important;
+  width: calc(100% - 68px) !important;
+  margin: 24px 34px 0 !important;
+  padding: 20px !important;
+  border: 1px solid #dbe3ec !important;
+  border-radius: 17px !important;
+  background: #ffffff !important;
+}
+
+.organizer-submission-modal .organizer-manual-review-panel > span {
+  display: block !important;
+  margin-bottom: 8px !important;
+  color: #475569 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: .14em !important;
+}
+
+.organizer-submission-modal .organizer-manual-review-panel p {
+  margin: 0 !important;
+  color: #64748b !important;
+  font-size: 14px !important;
+  line-height: 1.7 !important;
+}
+
+.organizer-submission-modal .organizer-review-form {
+  box-sizing: border-box !important;
+  width: calc(100% - 68px) !important;
+  margin: 24px 34px 34px !important;
+  padding: 24px !important;
+  border: 1px solid #dbe3ec !important;
+  border-radius: 20px !important;
+  background: #ffffff !important;
+}
+
+.organizer-submission-modal .organizer-review-form-grid {
+  display: grid !important;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) !important;
+  gap: 16px !important;
+}
+
+.organizer-submission-modal .organizer-review-form-grid .org-field.full {
+  grid-column: 1 / -1 !important;
+}
+
+.organizer-submission-modal .organizer-review-form .org-input {
+  font-size: 15px !important;
+}
+
+.organizer-submission-modal .organizer-review-form .textarea {
+  min-height: 130px !important;
+  line-height: 1.65 !important;
+}
+
+.organizer-submission-modal .organizer-review-actions {
+  display: flex !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  margin-top: 18px !important;
+}
+
+@media (max-width: 900px) {
+  .organizer-review-modal-backdrop {
+    padding: 16px !important;
+  }
+
+  .organizer-review-modal.organizer-submission-modal {
+    width: calc(100vw - 32px) !important;
+    height: calc(100dvh - 32px) !important;
+    max-height: calc(100dvh - 32px) !important;
+    border-radius: 22px !important;
+  }
+
+  .organizer-submission-modal .organizer-review-modal-head,
+  .organizer-submission-modal .organizer-review-status-row {
+    padding-left: 22px !important;
+    padding-right: 22px !important;
+  }
+
+  .organizer-submission-modal .organizer-ai-panel,
+  .organizer-submission-modal .organizer-review-details,
+  .organizer-submission-modal .organizer-existing-feedback,
+  .organizer-submission-modal .organizer-manual-review-panel,
+  .organizer-submission-modal .organizer-review-form {
+    width: calc(100% - 44px) !important;
+    margin-left: 22px !important;
+    margin-right: 22px !important;
+  }
+
+  .organizer-submission-modal .organizer-ai-score-hero,
+  .organizer-submission-modal .organizer-ai-insight-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .organizer-submission-modal .organizer-ai-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .organizer-submission-modal .organizer-review-details {
+    grid-template-columns: 1fr !important;
+  }
+
+  .organizer-submission-modal .organizer-review-detail-wide {
+    grid-column: auto !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .organizer-review-modal-backdrop {
+    padding: 10px !important;
+  }
+
+  .organizer-review-modal.organizer-submission-modal {
+    width: calc(100vw - 20px) !important;
+    height: calc(100dvh - 20px) !important;
+    max-height: calc(100dvh - 20px) !important;
+    border-radius: 18px !important;
+  }
+
+  .organizer-submission-modal .organizer-review-modal-head {
+    padding: 20px 18px 18px !important;
+  }
+
+  .organizer-submission-modal .organizer-review-modal-head h2 {
+    font-size: 30px !important;
+  }
+
+  .organizer-submission-modal .organizer-review-close {
+    flex-basis: 42px !important;
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .organizer-submission-modal .organizer-review-status-row {
+    padding: 13px 18px !important;
+    font-size: 13px !important;
+  }
+
+  .organizer-submission-modal .organizer-ai-panel,
+  .organizer-submission-modal .organizer-review-details,
+  .organizer-submission-modal .organizer-existing-feedback,
+  .organizer-submission-modal .organizer-manual-review-panel,
+  .organizer-submission-modal .organizer-review-form {
+    width: calc(100% - 36px) !important;
+    margin-left: 18px !important;
+    margin-right: 18px !important;
+  }
+
+  .organizer-submission-modal .organizer-ai-panel {
+    padding: 18px !important;
+  }
+
+  .organizer-submission-modal .organizer-ai-panel-head {
+    flex-direction: column !important;
+  }
+
+  .organizer-submission-modal .organizer-ai-panel-head .ai-analyze-btn {
+    width: 100% !important;
+  }
+
+  .organizer-submission-modal .organizer-ai-metrics {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .organizer-submission-modal .organizer-review-form {
+    padding: 18px !important;
+  }
+
+  .organizer-submission-modal .organizer-review-form-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .organizer-submission-modal .organizer-review-form-grid .org-field.full {
+    grid-column: auto !important;
+  }
+
+  .organizer-submission-modal .organizer-review-actions {
+    flex-direction: column-reverse !important;
+    align-items: stretch !important;
+  }
+
+  .organizer-submission-modal .organizer-review-actions button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}

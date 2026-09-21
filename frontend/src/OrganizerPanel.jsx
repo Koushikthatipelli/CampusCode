@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertCircle,
   ArrowRight,
@@ -1895,7 +1896,25 @@ function OrganizerSubmissionModal({
       ? ai.suggestions
       : [];
 
-  return (
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    const previousPaddingRight = document.body.style.paddingRight;
+
+    const scrollbarWidth =
+      window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.body.style.paddingRight = previousPaddingRight;
+    };
+  }, []);
+
+  const modal = (
     <div
       className="organizer-review-modal-backdrop"
       onMouseDown={onClose}
@@ -2452,6 +2471,8 @@ function OrganizerSubmissionModal({
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
 function RoundTwo({ title, description, hackathon, hackathons, selectedId, setSelectedId, reviewMode }) {
   const [items, setItems] = useState([]);
