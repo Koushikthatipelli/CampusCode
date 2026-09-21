@@ -3,27 +3,23 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { pipeline } from "stream/promises";
-import * as pdfParseModule from "pdf-parse";
+import { PDFParse } from "pdf-parse";
 
-const pdfParse =
-  pdfParseModule?.default ||
-  pdfParseModule?.pdfParse ||
-  pdfParseModule;
+const normalizeText = (value) => {
+  if (typeof value !== "string") return "";
 
-/* =========================================================
-   HELPERS
-========================================================= */
+  return value
+    .replace(/\u0000/g, "")
+    .replace(/\r/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+};
 
-function normalizeText(value) {
-  return typeof value === "string"
-    ? value.trim()
-    : "";
-}
+const extractGoogleDriveFileId = (url) => {
+  if (typeof url !== "string") return null;
 
-function extractGoogleDriveFileId(url) {
-  const value = normalizeText(url);
-
-  if (!value) return null;
+  const value = url.trim();
 
   const patterns = [
     /\/file\/d\/([a-zA-Z0-9_-]+)/,
@@ -40,32 +36,32 @@ function extractGoogleDriveFileId(url) {
   }
 
   return null;
-}
+};
 
-function isGoogleDriveUrl(url) {
+const isGoogleDriveUrl = (url) => {
+  if (typeof url !== "string") return false;
+
   try {
     const parsed = new URL(url);
 
+    const hostname = parsed.hostname.toLowerCase();
+
     return (
-      parsed.hostname === "drive.google.com" ||
-      parsed.hostname === "docs.google.com"
+      hostname === "drive.google.com" ||
+      hostname === "www.drive.google.com" ||
+      hostname === "docs.google.com"
     );
   } catch {
     return false;
   }
-}
+};
 
-/* =========================================================
-   DOWNLOAD GOOGLE DRIVE PDF
-========================================================= */
-
-async function downloadGoogleDrivePdf(pdfUrl) {
-  const fileId =
-    extractGoogleDriveFileId(pdfUrl);
+const downloadGoogleDrivePdf = async (driveUrl) => {
+  const fileId = extractGoogleDriveFileId(driveUrl);
 
   if (!fileId) {
     throw new Error(
-      "Invalid Google Drive PDF URL. Please provide a shareable Google Drive file link."
+      "Invalid Google Drive URL. Please provide a valid Google Drive file link."
     );
   }
 
@@ -74,1110 +70,725 @@ async function downloadGoogleDrivePdf(pdfUrl) {
       fileId
     )}&export=download&confirm=t`;
 
-  const response = await fetch(
-    downloadUrl,
-    {
-      redirect: "follow",
-    }
+  const tempDir = await fs.promises.mkdtemp(
+    path.join(os.tmpdir(), "campuscode-round2-")
   );
 
-  if (!response.ok || !response.body) {
-    throw new Error(
-      `Unable to download the Google Drive PDF (HTTP ${response.status}).`
-    );
-  }
-
-  const contentType = (
-    response.headers.get(
-      "content-type"
-    ) || ""
-  ).toLowerCase();
-
-  const tempFile = path.join(
-    os.tmpdir(),
-    `campuscode-round2-${Date.now()}-${Math.random()
-      .toString(36)
-      .slice(2)}.pdf`
-  );
-
-  const fileStream =
-    fs.createWriteStream(tempFile);
-
-  await pipeline(
-    response.body,
-    fileStream
-  );
-
-  const stats =
-    await fs.promises.stat(tempFile);
-
-  const MAX_PDF_SIZE =
-    10 * 1024 * 1024;
-
-  if (stats.size === 0) {
-    await fs.promises
-      .unlink(tempFile)
-      .catch(() => {});
-
-    throw new Error(
-      "The Google Drive file is empty."
-    );
-  }
-
-  if (stats.size > MAX_PDF_SIZE) {
-    await fs.promises
-      .unlink(tempFile)
-      .catch(() => {});
-
-    throw new Error(
-      "The Round 2 PDF must be 10 MB or smaller."
-    );
-  }
-
-  const firstBytes =
-    Buffer.alloc(5);
-
-  const handle =
-    await fs.promises.open(
-      tempFile,
-      "r"
-    );
+  const tempPath = path.join(tempDir, `${fileId}.pdf`);
 
   try {
-    await handle.read(
-      firstBytes,
-      0,
-      5,
-      0
-    );
-  } finally {
-    await handle.close();
-  }
+    const response = await fetch(downloadUrl, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/153.0.0.0 Safari/537.36",
+      },
+    });
 
-  const looksLikePdf =
-    firstBytes.toString("utf8") ===
-    "%PDF-";
-
-  if (!looksLikePdf) {
-    await fs.promises
-      .unlink(tempFile)
-      .catch(() => {});
-
-    if (
-      contentType.includes(
-        "text/html"
-      )
-    ) {
+    if (!response.ok) {
       throw new Error(
-        "Google Drive returned a webpage instead of the PDF. Make sure the PDF sharing is set to anyone with the link can view."
+        `Google Drive download failed with status ${response.status}.`
       );
     }
 
-    throw new Error(
-      "The provided Google Drive file is not a valid PDF."
+    const contentType = String(
+      response.headers.get("content-type") || ""
+    ).toLowerCase();
+
+    const contentLength = Number(
+      response.headers.get("content-length") || 0
     );
+
+    const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+    if (contentLength > MAX_FILE_SIZE) {
+      throw new Error("PDF file is too large. Maximum allowed size is 10 MB.");
+    }
+
+    if (!response.body) {
+      throw new Error("Google Drive returned an empty response.");
+    }
+
+    await pipeline(response.body, fs.createWriteStream(tempPath));
+
+    const stats = await fs.promises.stat(tempPath);
+
+    if (!stats.size) {
+      throw new Error("The downloaded PDF is empty.");
+    }
+
+    if (stats.size > MAX_FILE_SIZE) {
+      throw new Error("PDF file is too large. Maximum allowed size is 10 MB.");
+    }
+
+    const headerBuffer = Buffer.alloc(5);
+
+    const fileHandle = await fs.promises.open(tempPath, "r");
+
+    try {
+      await fileHandle.read(headerBuffer, 0, 5, 0);
+    } finally {
+      await fileHandle.close();
+    }
+
+    const header = headerBuffer.toString("ascii");
+
+    if (header !== "%PDF-") {
+      const firstBytes = await fs.promises.readFile(tempPath, {
+        encoding: "utf8",
+      });
+
+      const lowerContent = firstBytes.slice(0, 1000).toLowerCase();
+
+      if (
+        contentType.includes("text/html") ||
+        lowerContent.includes("<html") ||
+        lowerContent.includes("<!doctype")
+      ) {
+        throw new Error(
+          "Google Drive returned an HTML page instead of the PDF. Make sure the file is shared as 'Anyone with the link' and the link points directly to the PDF."
+        );
+      }
+
+      throw new Error(
+        "The Google Drive file is not a valid PDF. Please check the uploaded file."
+      );
+    }
+
+    return {
+      tempDir,
+      tempPath,
+      fileSize: stats.size,
+    };
+  } catch (error) {
+    try {
+      await fs.promises.rm(tempDir, {
+        recursive: true,
+        force: true,
+      });
+    } catch {
+      // Ignore cleanup errors.
+    }
+
+    throw error;
   }
+};
 
-  return tempFile;
-}
+const extractPdfText = async (filePath) => {
+  let parser = null;
 
-/* =========================================================
-   EXTRACT PDF TEXT
-========================================================= */
-
-async function extractPdfText(pdfPath) {
-  if (typeof pdfParse !== "function") {
-    throw new Error(
-      "PDF parser is not available. Check the pdf-parse package installation."
-    );
-  }
-
-  const buffer =
-    await fs.promises.readFile(
-      pdfPath
-    );
-
-  const parsed =
-    await pdfParse(buffer);
-
-  return normalizeText(
-    parsed?.text
-  );
-}
-
-/* =========================================================
-   GET ROUND 2 STATUS
-
-   GET
-   /api/student/round2/hackathons/:hackathonId
-========================================================= */
-
-export async function getRound2Status(
-  req,
-  res
-) {
   try {
-    const studentId =
-      req.user.id;
+    const pdfBuffer = await fs.promises.readFile(filePath);
 
-    const { hackathonId } =
-      req.params;
+    if (!pdfBuffer.length) {
+      throw new Error("The PDF file is empty.");
+    }
+
+    if (pdfBuffer.subarray(0, 5).toString("ascii") !== "%PDF-") {
+      throw new Error("The downloaded file is not a valid PDF.");
+    }
+
+    parser = new PDFParse({
+      data: pdfBuffer,
+    });
+
+    const result = await parser.getText();
+
+    const text = normalizeText(result?.text || "");
+
+    if (!text) {
+      throw new Error(
+        "The PDF was downloaded, but its text could not be extracted. Please upload a readable text-based PDF."
+      );
+    }
+
+    return text;
+  } catch (error) {
+    if (
+      error?.message ===
+      "The PDF was downloaded, but its text could not be extracted. Please upload a readable text-based PDF."
+    ) {
+      throw error;
+    }
+
+    console.error("Round 2 PDF extraction error:", error);
+
+    throw new Error(
+      "The PDF was downloaded, but its text could not be extracted. Please upload a readable text-based PDF."
+    );
+  } finally {
+    if (parser) {
+      try {
+        await parser.destroy();
+      } catch (destroyError) {
+        console.error(
+          "Round 2 PDF parser cleanup error:",
+          destroyError?.message || destroyError
+        );
+      }
+    }
+  }
+};
+
+export const getRound2Status = async (req, res) => {
+  try {
+    const studentId = req.user?.id || req.user?.user_id;
+
+    const { hackathonId } = req.params;
+
+    if (!studentId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
 
     if (!hackathonId) {
       return res.status(400).json({
         success: false,
-        message:
-          "Hackathon ID is required",
+        message: "Hackathon ID is required",
       });
     }
 
-    /* -----------------------------------------------------
-       1. CHECK REGISTRATION
-    ----------------------------------------------------- */
+    const registrationResult = await pool.query(
+      `
+      SELECT
+        hp.id,
+        hp.hackathon_id,
+        hp.user_id,
+        hp.status
+      FROM hackathon_participants hp
+      WHERE hp.hackathon_id = $1
+        AND hp.user_id = $2
+      LIMIT 1
+      `,
+      [hackathonId, studentId]
+    );
 
-    const registrationResult =
-      await pool.query(
-        `
-        SELECT
-          hp.id AS participant_id,
-          hp.status AS registration_status,
-
-          h.id AS hackathon_id,
-          h.title AS hackathon_title,
-          h.description AS hackathon_description,
-          h.status AS hackathon_status,
-          h.current_round,
-          h.start_date,
-          h.end_date
-
-        FROM hackathon_participants hp
-
-        INNER JOIN hackathons h
-          ON h.id = hp.hackathon_id
-
-        WHERE hp.user_id = $1
-          AND hp.hackathon_id = $2
-
-        LIMIT 1
-        `,
-        [
-          studentId,
-          hackathonId,
-        ]
-      );
-
-    if (
-      registrationResult.rows
-        .length === 0
-    ) {
+    if (registrationResult.rows.length === 0) {
       return res.status(403).json({
         success: false,
-        message:
-          "You are not registered for this hackathon",
+        message: "You are not registered for this hackathon.",
       });
     }
 
-    const registration =
-      registrationResult.rows[0];
+    const registration = registrationResult.rows[0];
 
-    /* -----------------------------------------------------
-       2. GET HACKATHON
-    ----------------------------------------------------- */
+    const hackathonResult = await pool.query(
+      `
+      SELECT
+        id,
+        title,
+        description,
+        current_round,
+        status,
+        start_date,
+        end_date
+      FROM hackathons
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [hackathonId]
+    );
 
-    const hackathonResult =
-      await pool.query(
-        `
-        SELECT
-          id,
-          title,
-          description,
-          status,
-          current_round,
-          start_date,
-          end_date
-
-        FROM hackathons
-
-        WHERE id = $1
-
-        LIMIT 1
-        `,
-        [hackathonId]
-      );
-
-    if (
-      hackathonResult.rows
-        .length === 0
-    ) {
+    if (hackathonResult.rows.length === 0) {
       return res.status(404).json({
         success: false,
-        message:
-          "Hackathon not found",
+        message: "Hackathon not found.",
       });
     }
 
-    const hackathon =
-      hackathonResult.rows[0];
+    const hackathon = hackathonResult.rows[0];
 
-    const currentRound =
-      Number(
-        hackathon.current_round
-      );
+    const teamResult = await pool.query(
+      `
+      SELECT
+        t.id,
+        t.name,
+        t.team_code,
+        t.status,
+        t.leader_id
+      FROM team_members tm
+      INNER JOIN teams t
+        ON t.id = tm.team_id
+      WHERE tm.user_id = $1
+        AND t.hackathon_id = $2
+      LIMIT 1
+      `,
+      [studentId, hackathonId]
+    );
 
-    /* -----------------------------------------------------
-       3. FIND STUDENT TEAM
-    ----------------------------------------------------- */
+    const team = teamResult.rows[0] || null;
 
-    const teamResult =
-      await pool.query(
+    let round1Decision = null;
+
+    if (team) {
+      const round1DecisionResult = await pool.query(
         `
         SELECT
-          t.id AS team_id,
-          t.name AS team_name,
-          t.status AS team_status
-
-        FROM team_members tm
-
-        INNER JOIN teams t
-          ON t.id = tm.team_id
-
-        WHERE tm.user_id = $1
-          AND t.hackathon_id = $2
-
-        LIMIT 1
-        `,
-        [
-          studentId,
-          hackathonId,
-        ]
-      );
-
-    if (
-      teamResult.rows
-        .length === 0
-    ) {
-      return res.status(200).json({
-        success: true,
-
-        message:
-          "Round 2 status fetched successfully",
-
-        accessible: false,
-
-        submission: null,
-
-        decision: null,
-
-        hackathon: {
-          ...hackathon,
-          current_round:
-            currentRound,
-        },
-
-        registration,
-
-        team: null,
-
-        round1: {
-          selected: false,
-          decision: null,
-        },
-
-        round2: {
-          accessible: false,
-          current_round:
-            currentRound,
-          submission: null,
-          decision: null,
-        },
-
-        reason: "NO_TEAM",
-      });
-    }
-
-    const teamRow =
-      teamResult.rows[0];
-
-    const team = {
-      id: teamRow.team_id,
-      name: teamRow.team_name,
-      status: teamRow.team_status,
-    };
-
-    /* -----------------------------------------------------
-       4. GET ROUND 1 DECISION
-    ----------------------------------------------------- */
-
-    const round1DecisionResult =
-      await pool.query(
-        `
-        SELECT
-          id,
-          hackathon_id,
-          team_id,
-          round1_submission_id,
           decision,
           organizer_feedback,
-          decided_by,
-          decided_at
-
+          score,
+          reviewed_at
         FROM round1_decisions
-
         WHERE hackathon_id = $1
           AND team_id = $2
-
-        ORDER BY decided_at DESC
-
+        ORDER BY reviewed_at DESC NULLS LAST
         LIMIT 1
         `,
-        [
-          hackathonId,
-          team.id,
-        ]
+        [hackathonId, team.id]
       );
 
-    const round1Decision =
-      round1DecisionResult.rows
-        .length > 0
-        ? round1DecisionResult.rows[0]
-        : null;
+      round1Decision = round1DecisionResult.rows[0] || null;
+    }
 
-    const round1Selected =
-      round1Decision?.decision ===
-      "SELECTED";
-
-    /* -----------------------------------------------------
-       5. ROUND 1 MUST BE SELECTED
-    ----------------------------------------------------- */
-
-    if (!round1Selected) {
-      return res.status(200).json({
+    if (!round1Decision) {
+      return res.json({
         success: true,
-
-        message:
-          "Round 2 status fetched successfully",
-
         accessible: false,
-
-        submission: null,
-
-        decision: null,
-
-        hackathon: {
-          ...hackathon,
-          current_round:
-            currentRound,
-        },
-
-        registration,
-
+        message: "Round 1 decision is not available yet.",
+        hackathon,
         team,
-
-        round1: {
-          selected: false,
-          decision:
-            round1Decision,
-        },
-
-        round2: {
-          accessible: false,
-          current_round:
-            currentRound,
-          submission: null,
-          decision: null,
-        },
-
-        reason:
-          "NOT_SELECTED_IN_ROUND_1",
+        decision: null,
+        submission: null,
+        round_status: "LOCKED",
       });
     }
 
-    /* -----------------------------------------------------
-       6. GET ROUND 2 SUBMISSION
+    const normalizedDecision = String(
+      round1Decision.decision || ""
+    ).toUpperCase();
 
-       GitHub = OPTIONAL
-       PDF = REQUIRED
-    ----------------------------------------------------- */
-
-    const round2SubmissionResult =
-      await pool.query(
-        `
-        SELECT
-          id,
-          hackathon_id,
-          team_id,
-          submitted_by,
-          github_url,
-          pdf_url,
-          extracted_text,
-          status,
-          submitted_at,
-          created_at,
-          updated_at
-
-        FROM round2_submissions
-
-        WHERE hackathon_id = $1
-          AND team_id = $2
-
-        ORDER BY created_at DESC
-
-        LIMIT 1
-        `,
-        [
-          hackathonId,
-          team.id,
-        ]
-      );
-
-    const submission =
-      round2SubmissionResult.rows
-        .length > 0
-        ? round2SubmissionResult.rows[0]
-        : null;
-
-    /* -----------------------------------------------------
-       7. GET ROUND 2 DECISION
-    ----------------------------------------------------- */
-
-    let decision = null;
-
-    if (submission) {
-      const round2DecisionResult =
-        await pool.query(
-          `
-          SELECT
-            id,
-            hackathon_id,
-            team_id,
-            round2_submission_id,
-            decision,
-            organizer_feedback,
-            decided_by,
-            decided_at
-
-          FROM round2_decisions
-
-          WHERE hackathon_id = $1
-            AND team_id = $2
-            AND round2_submission_id = $3
-
-          ORDER BY decided_at DESC
-
-          LIMIT 1
-          `,
-          [
-            hackathonId,
-            team.id,
-            submission.id,
-          ]
-        );
-
-      if (
-        round2DecisionResult.rows
-          .length > 0
-      ) {
-        decision =
-          round2DecisionResult.rows[0];
-      }
+    if (normalizedDecision !== "SELECTED") {
+      return res.json({
+        success: true,
+        accessible: false,
+        message: "Your team was not selected for Round 2.",
+        hackathon,
+        team,
+        decision: round1Decision,
+        submission: null,
+        round_status: "LOCKED",
+      });
     }
 
-    /* -----------------------------------------------------
-       8. CHECK ROUND 2 ACCESS
-    ----------------------------------------------------- */
+    const submissionResult = await pool.query(
+      `
+      SELECT
+        id,
+        hackathon_id,
+        team_id,
+        submitted_by,
+        github_url,
+        pdf_url,
+        extracted_text,
+        status,
+        submitted_at,
+        updated_at
+      FROM round2_submissions
+      WHERE hackathon_id = $1
+        AND team_id = $2
+      ORDER BY submitted_at DESC
+      LIMIT 1
+      `,
+      [hackathonId, team?.id || null]
+    );
 
-    const accessible =
-      currentRound >= 2;
+    const submission = submissionResult.rows[0] || null;
 
-    /* -----------------------------------------------------
-       9. RETURN RESPONSE
-    ----------------------------------------------------- */
-
-    return res.status(200).json({
-      success: true,
-
-      message:
-        "Round 2 status fetched successfully",
-
-      accessible,
-
-      submission,
-
-      decision,
-
-      hackathon: {
-        ...hackathon,
-        current_round:
-          currentRound,
-      },
-
-      registration,
-
-      team,
-
-      round1: {
-        selected: true,
-        decision:
-          round1Decision,
-      },
-
-      round2: {
-        accessible,
-
-        current_round:
-          currentRound,
-
-        submission,
-
+    const decisionResult = await pool.query(
+      `
+      SELECT
+        id,
+        hackathon_id,
+        team_id,
         decision,
-      },
+        score,
+        organizer_feedback,
+        reviewed_by,
+        reviewed_at
+      FROM round2_decisions
+      WHERE hackathon_id = $1
+        AND team_id = $2
+      ORDER BY reviewed_at DESC NULLS LAST
+      LIMIT 1
+      `,
+      [hackathonId, team?.id || null]
+    );
 
-      reason: accessible
-        ? null
-        : "ROUND_2_NOT_ACTIVE",
+    const round2Decision = decisionResult.rows[0] || null;
+
+    const currentRound = Number(hackathon.current_round || 0);
+
+    const accessible = currentRound >= 2;
+
+    let message = "Round 2 is locked.";
+
+    if (accessible) {
+      message = submission
+        ? "Round 2 submission found."
+        : "Round 2 is open.";
+    }
+
+    return res.json({
+      success: true,
+      accessible,
+      message,
+      hackathon,
+      team,
+      decision: round2Decision || round1Decision,
+      round1_decision: round1Decision,
+      submission,
+      round_status: accessible ? "OPEN" : "LOCKED",
+      current_round: currentRound,
     });
   } catch (error) {
-    console.error(
-      "getRound2Status error:",
-      error
-    );
+    console.error("getRound2Status error:", error);
 
     return res.status(500).json({
       success: false,
-
-      message:
-        "Failed to fetch Round 2 status",
-
+      message: "Failed to fetch Round 2 status.",
       error:
-        process.env.NODE_ENV ===
-        "development"
-          ? error.message
+        process.env.NODE_ENV === "development"
+          ? error?.message
           : undefined,
     });
   }
-}
+};
 
-/* =========================================================
-   SUBMIT ROUND 2
-
-   POST
-   /api/student/round2/hackathons/:hackathonId/submit
-
-   REQUIRED:
-   - Google Drive PDF URL
-
-   OPTIONAL:
-   - GitHub repository URL
-========================================================= */
-
-export async function submitRound2(
-  req,
-  res
-) {
-  let tempPdfPath = null;
+export const submitRound2 = async (req, res) => {
+  let tempDir = null;
 
   try {
-    const studentId =
-      req.user.id;
+    const studentId = req.user?.id || req.user?.user_id;
 
-    const { hackathonId } =
-      req.params;
+    const { hackathonId } = req.params;
 
-    const {
-      github_url,
-      pdf_url,
-    } = req.body || {};
-
-    /*
-     * GitHub is OPTIONAL.
-     *
-     * Empty string is converted to null
-     * before saving to PostgreSQL.
-     */
     const githubUrl =
-      normalizeText(
-        github_url
-      );
+      typeof req.body?.github_url === "string"
+        ? req.body.github_url.trim()
+        : "";
 
-    /*
-     * PDF is REQUIRED.
-     */
     const pdfUrl =
-      normalizeText(
-        pdf_url
-      );
+      typeof req.body?.pdf_url === "string"
+        ? req.body.pdf_url.trim()
+        : "";
 
-    /* -----------------------------------------------------
-       1. VALIDATE REQUEST
-    ----------------------------------------------------- */
+    if (!studentId) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+    }
 
     if (!hackathonId) {
       return res.status(400).json({
         success: false,
-
-        message:
-          "Hackathon ID is required",
+        message: "Hackathon ID is required.",
       });
     }
 
-    /*
-     * IMPORTANT:
-     *
-     * DO NOT validate github_url here.
-     *
-     * GitHub is optional.
-     */
-
+    // GitHub is OPTIONAL in Round 2.
+    // PDF is REQUIRED.
     if (!pdfUrl) {
       return res.status(400).json({
         success: false,
-
-        message:
-          "Google Drive PDF URL is required",
+        message: "Google Drive PDF URL is required.",
       });
     }
 
     if (!isGoogleDriveUrl(pdfUrl)) {
       return res.status(400).json({
         success: false,
-
-        message:
-          "Please provide a valid Google Drive PDF URL",
+        message: "Please provide a valid Google Drive PDF URL.",
       });
     }
 
-    /* -----------------------------------------------------
-       2. CHECK REGISTRATION + HACKATHON
-    ----------------------------------------------------- */
+    const registrationResult = await pool.query(
+      `
+      SELECT
+        id,
+        hackathon_id,
+        user_id,
+        status
+      FROM hackathon_participants
+      WHERE hackathon_id = $1
+        AND user_id = $2
+      LIMIT 1
+      `,
+      [hackathonId, studentId]
+    );
 
-    const registrationResult =
-      await pool.query(
-        `
-        SELECT
-          hp.id AS participant_id,
-          hp.status AS registration_status,
-
-          h.id AS hackathon_id,
-          h.title AS hackathon_title,
-          h.current_round,
-          h.status AS hackathon_status
-
-        FROM hackathon_participants hp
-
-        INNER JOIN hackathons h
-          ON h.id = hp.hackathon_id
-
-        WHERE hp.user_id = $1
-          AND hp.hackathon_id = $2
-
-        LIMIT 1
-        `,
-        [
-          studentId,
-          hackathonId,
-        ]
-      );
-
-    if (
-      registrationResult.rows
-        .length === 0
-    ) {
+    if (registrationResult.rows.length === 0) {
       return res.status(403).json({
         success: false,
-
-        message:
-          "You are not registered for this hackathon",
+        message: "You are not registered for this hackathon.",
       });
     }
 
-    const hackathon =
-      registrationResult.rows[0];
+    const hackathonResult = await pool.query(
+      `
+      SELECT
+        id,
+        title,
+        description,
+        current_round,
+        status,
+        start_date,
+        end_date
+      FROM hackathons
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [hackathonId]
+    );
 
-    /* -----------------------------------------------------
-       3. ROUND 2 MUST BE ACTIVE
-    ----------------------------------------------------- */
+    if (hackathonResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Hackathon not found.",
+      });
+    }
 
-    if (
-      Number(
-        hackathon.current_round
-      ) !== 2
-    ) {
+    const hackathon = hackathonResult.rows[0];
+
+    const currentRound = Number(hackathon.current_round || 0);
+
+    if (currentRound !== 2) {
+      return res.status(400).json({
+        success: false,
+        message:
+          currentRound < 2
+            ? "Round 2 is not active yet."
+            : "Round 2 submission is closed.",
+      });
+    }
+
+    const teamResult = await pool.query(
+      `
+      SELECT
+        t.id,
+        t.name,
+        t.team_code,
+        t.status,
+        t.leader_id
+      FROM team_members tm
+      INNER JOIN teams t
+        ON t.id = tm.team_id
+      WHERE tm.user_id = $1
+        AND t.hackathon_id = $2
+      LIMIT 1
+      `,
+      [studentId, hackathonId]
+    );
+
+    if (teamResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "You must be part of a team before submitting Round 2.",
+      });
+    }
+
+    const team = teamResult.rows[0];
+
+    const round1DecisionResult = await pool.query(
+      `
+      SELECT
+        decision,
+        organizer_feedback,
+        score,
+        reviewed_at
+      FROM round1_decisions
+      WHERE hackathon_id = $1
+        AND team_id = $2
+      ORDER BY reviewed_at DESC NULLS LAST
+      LIMIT 1
+      `,
+      [hackathonId, team.id]
+    );
+
+    if (round1DecisionResult.rows.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Round 1 decision is not available yet.",
+      });
+    }
+
+    const round1Decision = round1DecisionResult.rows[0];
+
+    const normalizedDecision = String(
+      round1Decision.decision || ""
+    ).toUpperCase();
+
+    if (normalizedDecision !== "SELECTED") {
       return res.status(403).json({
         success: false,
-
         message:
-          "Round 2 is not currently active",
-
-        current_round:
-          Number(
-            hackathon.current_round
-          ),
+          "Your team must be selected in Round 1 before submitting Round 2.",
       });
     }
 
-    /* -----------------------------------------------------
-       4. FIND TEAM
-    ----------------------------------------------------- */
+    const existingSubmissionResult = await pool.query(
+      `
+      SELECT
+        id,
+        hackathon_id,
+        team_id,
+        submitted_by,
+        github_url,
+        pdf_url,
+        extracted_text,
+        status,
+        submitted_at,
+        updated_at
+      FROM round2_submissions
+      WHERE hackathon_id = $1
+        AND team_id = $2
+      LIMIT 1
+      `,
+      [hackathonId, team.id]
+    );
 
-    const teamResult =
-      await pool.query(
-        `
-        SELECT
-          t.id AS team_id,
-          t.name AS team_name,
-          t.status AS team_status
-
-        FROM team_members tm
-
-        INNER JOIN teams t
-          ON t.id = tm.team_id
-
-        WHERE tm.user_id = $1
-          AND t.hackathon_id = $2
-
-        LIMIT 1
-        `,
-        [
-          studentId,
-          hackathonId,
-        ]
-      );
-
-    if (
-      teamResult.rows
-        .length === 0
-    ) {
-      return res.status(403).json({
-        success: false,
-
-        message:
-          "You are not part of a team for this hackathon",
-      });
-    }
-
-    const team =
-      teamResult.rows[0];
-
-    /* -----------------------------------------------------
-       5. CHECK ROUND 1 DECISION
-    ----------------------------------------------------- */
-
-    const round1DecisionResult =
-      await pool.query(
-        `
-        SELECT
-          id,
-          decision,
-          organizer_feedback,
-          decided_at
-
-        FROM round1_decisions
-
-        WHERE hackathon_id = $1
-          AND team_id = $2
-
-        ORDER BY decided_at DESC
-
-        LIMIT 1
-        `,
-        [
-          hackathonId,
-          team.team_id,
-        ]
-      );
-
-    if (
-      round1DecisionResult.rows
-        .length === 0
-    ) {
-      return res.status(403).json({
-        success: false,
-
-        message:
-          "Round 1 decision has not been recorded",
-      });
-    }
-
-    const round1Decision =
-      round1DecisionResult.rows[0];
-
-    if (
-      round1Decision.decision !==
-      "SELECTED"
-    ) {
-      return res.status(403).json({
-        success: false,
-
-        message:
-          "Your Round 1 team decision must be SELECTED to submit Round 2",
-      });
-    }
-
-    /* -----------------------------------------------------
-       6. CHECK EXISTING SUBMISSION
-    ----------------------------------------------------- */
-
-    const existingSubmissionResult =
-      await pool.query(
-        `
-        SELECT
-          id,
-          status,
-          github_url,
-          pdf_url,
-          extracted_text,
-          submitted_at
-
-        FROM round2_submissions
-
-        WHERE hackathon_id = $1
-          AND team_id = $2
-
-        ORDER BY created_at DESC
-
-        LIMIT 1
-        `,
-        [
-          hackathonId,
-          team.team_id,
-        ]
-      );
-
-    if (
-      existingSubmissionResult.rows
-        .length > 0
-    ) {
+    if (existingSubmissionResult.rows.length > 0) {
       return res.status(409).json({
         success: false,
-
-        message:
-          "Your team has already submitted Round 2",
-
-        submission:
-          existingSubmissionResult.rows[0],
+        message: "Your team has already submitted Round 2.",
+        submission: existingSubmissionResult.rows[0],
       });
     }
 
-    /* -----------------------------------------------------
-       7. DOWNLOAD GOOGLE DRIVE PDF
-    ----------------------------------------------------- */
+    console.log(
+      `Round 2 PDF download started: hackathon=${hackathonId}, team=${team.id}`
+    );
 
-    try {
-      tempPdfPath =
-        await downloadGoogleDrivePdf(
-          pdfUrl
-        );
-    } catch (pdfDownloadError) {
-      console.error(
-        "Round 2 PDF download error:",
-        pdfDownloadError
+    const downloaded = await downloadGoogleDrivePdf(pdfUrl);
+
+    tempDir = downloaded.tempDir;
+
+    console.log(
+      `Round 2 PDF downloaded successfully: ${downloaded.fileSize} bytes`
+    );
+
+    console.log("Round 2 PDF text extraction started...");
+
+    const extractedText = await extractPdfText(downloaded.tempPath);
+
+    console.log(
+      `Round 2 PDF text extraction successful: ${extractedText.length} characters`
+    );
+
+    if (!extractedText || extractedText.trim().length < 20) {
+      throw new Error(
+        "The PDF was downloaded, but its text could not be extracted. Please upload a readable text-based PDF."
       );
-
-      return res.status(400).json({
-        success: false,
-
-        message:
-          pdfDownloadError.message ||
-          "Unable to access the Google Drive PDF",
-      });
     }
 
-    /* -----------------------------------------------------
-       8. EXTRACT PDF TEXT
-    ----------------------------------------------------- */
+    const insertResult = await pool.query(
+      `
+      INSERT INTO round2_submissions (
+        hackathon_id,
+        team_id,
+        submitted_by,
+        github_url,
+        pdf_url,
+        extracted_text,
+        status,
+        submitted_at,
+        updated_at
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        'SUBMITTED',
+        NOW(),
+        NOW()
+      )
+      RETURNING
+        id,
+        hackathon_id,
+        team_id,
+        submitted_by,
+        github_url,
+        pdf_url,
+        extracted_text,
+        status,
+        submitted_at,
+        updated_at
+      `,
+      [
+        hackathonId,
+        team.id,
+        studentId,
+        githubUrl || null,
+        pdfUrl,
+        extractedText,
+      ]
+    );
 
-    let extractedText = "";
-
-    try {
-      extractedText =
-        await extractPdfText(
-          tempPdfPath
-        );
-    } catch (pdfParseError) {
-      console.error(
-        "Round 2 PDF extraction error:",
-        pdfParseError
-      );
-
-      return res.status(400).json({
-        success: false,
-
-        message:
-          "The PDF was downloaded, but its text could not be extracted. Please upload a readable text-based PDF.",
-      });
-    }
-
-    if (!extractedText) {
-      return res.status(400).json({
-        success: false,
-
-        message:
-          "No readable text was found in the PDF. Please upload a text-based PDF.",
-      });
-    }
-
-    /* -----------------------------------------------------
-       9. INSERT ROUND 2 SUBMISSION
-
-       GitHub:
-       OPTIONAL -> NULL when empty.
-
-       PDF:
-       REQUIRED.
-
-       extracted_text:
-       Saved for Round 2 AI processing.
-    ----------------------------------------------------- */
-
-    const submissionResult =
-      await pool.query(
-        `
-        INSERT INTO round2_submissions (
-          hackathon_id,
-          team_id,
-          submitted_by,
-          github_url,
-          pdf_url,
-          extracted_text,
-          status,
-          submitted_at
-        )
-
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          $6,
-          'SUBMITTED',
-          NOW()
-        )
-
-        RETURNING
-          id,
-          hackathon_id,
-          team_id,
-          submitted_by,
-          github_url,
-          pdf_url,
-          extracted_text,
-          status,
-          submitted_at,
-          created_at,
-          updated_at
-        `,
-        [
-          hackathonId,
-          team.team_id,
-          studentId,
-
-          /*
-           * GitHub optional.
-           * Save NULL if the student leaves it empty.
-           */
-          githubUrl || null,
-
-          /*
-           * PDF required.
-           */
-          pdfUrl,
-
-          /*
-           * Extracted PDF text.
-           */
-          extractedText,
-        ]
-      );
-
-    const submission =
-      submissionResult.rows[0];
-
-    /* -----------------------------------------------------
-       10. SUCCESS RESPONSE
-    ----------------------------------------------------- */
+    const submission = insertResult.rows[0];
 
     return res.status(201).json({
       success: true,
-
-      message:
-        "Round 2 submission submitted successfully",
-
-      accessible: true,
-
+      message: "Round 2 project submitted successfully.",
       submission,
-
-      decision: null,
-
-      hackathon: {
-        id:
-          hackathon.hackathon_id,
-
-        title:
-          hackathon.hackathon_title,
-
-        current_round:
-          Number(
-            hackathon.current_round
-          ),
-
-        status:
-          hackathon.hackathon_status,
-      },
-
-      team: {
-        id: team.team_id,
-        name: team.team_name,
-        status: team.team_status,
-      },
-
-      round1: {
-        selected: true,
-
-        decision:
-          round1Decision,
-      },
-
-      round2: {
-        accessible: true,
-
-        current_round:
-          Number(
-            hackathon.current_round
-          ),
-
-        submission,
-
-        decision: null,
-      },
     });
   } catch (error) {
-    console.error(
-      "submitRound2 error:",
-      error
-    );
+    console.error("submitRound2 error:", error);
+
+    if (error?.code === "23505") {
+      return res.status(409).json({
+        success: false,
+        message: "Your team has already submitted Round 2.",
+      });
+    }
+
+    if (
+      error?.message ===
+      "The PDF was downloaded, but its text could not be extracted. Please upload a readable text-based PDF."
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
+    if (
+      error?.message?.includes("Google Drive") ||
+      error?.message?.includes("valid PDF") ||
+      error?.message?.includes("PDF file is too large")
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
 
     return res.status(500).json({
       success: false,
-
-      message:
-        "Failed to submit Round 2",
-
+      message: "Failed to submit Round 2.",
       error:
-        process.env.NODE_ENV ===
-        "development"
-          ? error.message
+        process.env.NODE_ENV === "development"
+          ? error?.message
           : undefined,
     });
   } finally {
-    /* -----------------------------------------------------
-       DELETE TEMPORARY PDF
-    ----------------------------------------------------- */
-
-    if (tempPdfPath) {
-      await fs.promises
-        .unlink(tempPdfPath)
-        .catch(() => {});
+    if (tempDir) {
+      try {
+        await fs.promises.rm(tempDir, {
+          recursive: true,
+          force: true,
+        });
+      } catch (cleanupError) {
+        console.error(
+          "Round 2 temporary file cleanup error:",
+          cleanupError?.message || cleanupError
+        );
+      }
     }
   }
-}
+};

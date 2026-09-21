@@ -4414,3 +4414,365 @@ html, body, #root {
 .student-guide-page .student-feature-label{color:#6f8e18 !important;}
 .student-support-card .student-outline-btn{color:#555 !important;border-color:#cfcfc7 !important;background:#fff !important;}
 .student-support-card .student-outline-btn:hover{color:#111 !important;border-color:#999 !important;background:#fafaf7 !important;}
+
+
+/* ============================================================
+   CAMPUSCODE — ROUND 2 FINAL UI OVERRIDE
+   GitHub = OPTIONAL
+   Google Drive PDF = REQUIRED
+   High-contrast, readable, light CampusCode theme
+   ============================================================ */
+
+.student-round-workspace,
+.student-feature-grid.student-round-workspace {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 16px !important;
+  width: 100% !important;
+  align-items: stretch !important;
+}
+
+.student-round-workspace > .student-feature-card {
+  width: 100% !important;
+  min-width: 0 !important;
+  min-height: 100% !important;
+  padding: 28px !important;
+  background: #ffffff !important;
+  color: #111111 !important;
+  border: 1px solid #dcdcd5 !important;
+  box-shadow: 0 12px 32px rgba(20,20,20,.045) !important;
+}
+
+.student-round-workspace .student-feature-card-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 18px !important;
+  padding-bottom: 18px !important;
+  margin-bottom: 20px !important;
+  border-bottom: 1px solid #e3e3dd !important;
+}
+
+.student-round-workspace .student-feature-label {
+  display: block !important;
+  color: #6f8e18 !important;
+  font: 700 9px/1.2 'DM Mono', monospace !important;
+  letter-spacing: .14em !important;
+  text-transform: uppercase !important;
+}
+
+.student-round-workspace .student-feature-card h2 {
+  margin: 10px 0 8px !important;
+  color: #111111 !important;
+  font-size: 29px !important;
+  line-height: 1.08 !important;
+  letter-spacing: -.045em !important;
+}
+
+.student-round-workspace .student-feature-card p {
+  margin: 0 !important;
+  color: #666660 !important;
+  font-size: 12px !important;
+  line-height: 1.7 !important;
+}
+
+.student-round-workspace .student-feature-icon {
+  width: 42px !important;
+  height: 42px !important;
+  min-width: 42px !important;
+  display: grid !important;
+  place-items: center !important;
+  background: #f1f4e8 !important;
+  color: #668317 !important;
+  border: 1px solid #dbe4c7 !important;
+}
+
+/* Hackathon selector */
+.student-round-workspace .student-data-select,
+.student-round-workspace select {
+  width: 100% !important;
+  min-height: 46px !important;
+  margin-top: 12px !important;
+  padding: 12px 14px !important;
+  border: 1px solid #d4d4cd !important;
+  border-radius: 7px !important;
+  background: #fafaf7 !important;
+  color: #111111 !important;
+  font: 600 12px/1.4 Inter, system-ui, sans-serif !important;
+  outline: none !important;
+}
+
+.student-round-workspace .student-data-select:focus,
+.student-round-workspace select:focus {
+  border-color: #7566ff !important;
+  box-shadow: 0 0 0 3px rgba(117,102,255,.09) !important;
+  background: #ffffff !important;
+}
+
+/* Status information */
+.student-round-workspace .student-info-list {
+  margin-top: 20px !important;
+  border-top: 1px solid #e3e3dd !important;
+}
+
+.student-round-workspace .student-info-list > div {
+  display: grid !important;
+  grid-template-columns: minmax(135px,.48fr) minmax(0,1fr) !important;
+  gap: 18px !important;
+  padding: 15px 0 !important;
+  border-bottom: 1px solid #e5e5df !important;
+}
+
+.student-round-workspace .student-info-list > div > span {
+  color: #777770 !important;
+  font: 700 8px/1.5 'DM Mono', monospace !important;
+  letter-spacing: .10em !important;
+}
+
+.student-round-workspace .student-info-list > div > strong {
+  color: #222222 !important;
+  font: 700 11px/1.55 Inter, system-ui, sans-serif !important;
+  word-break: break-word !important;
+}
+
+.student-round-workspace .student-feedback-row {
+  grid-column: 1 / -1 !important;
+}
+
+/* R2 form */
+.student-round-workspace .student-round-form {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  padding-top: 4px !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.student-round-workspace .student-round-form > label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin: 8px 0 0 !important;
+  color: #4f4f49 !important;
+  font: 800 9px/1.4 'DM Mono', monospace !important;
+  letter-spacing: .10em !important;
+  text-transform: uppercase !important;
+}
+
+/* Optional GitHub marker */
+.student-round-workspace .student-round-form > label .student-optional-mark,
+.student-round-workspace .student-round-form > label span.student-optional-mark {
+  color: #8a8a83 !important;
+  font: 600 8px/1.4 Inter, system-ui, sans-serif !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+}
+
+/* Required PDF marker */
+.student-round-workspace .student-round-form > label .student-required-mark,
+.student-round-workspace .student-round-form > label span.student-required-mark {
+  color: #b04343 !important;
+  font: 900 10px/1.4 Inter, system-ui, sans-serif !important;
+  letter-spacing: 0 !important;
+}
+
+/* If JSX uses plain text labels */
+.student-round-workspace .student-round-form > label:first-of-type::after {
+  content: "OPTIONAL";
+  color: #8a8a83;
+  font: 600 8px/1.4 Inter, system-ui, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-left: 2px;
+}
+
+.student-round-workspace .student-round-form > label:nth-of-type(2)::after {
+  content: "REQUIRED";
+  color: #b04343;
+  font: 900 8px/1.4 Inter, system-ui, sans-serif;
+  letter-spacing: 0;
+  text-transform: none;
+  margin-left: 2px;
+}
+
+/* Prevent duplicate markers if JSX already contains explicit marker */
+.student-round-workspace .student-round-form > label:has(.student-optional-mark)::after,
+.student-round-workspace .student-round-form > label:has(.student-required-mark)::after {
+  content: "" !important;
+  display: none !important;
+}
+
+/* Inputs */
+.student-round-workspace .student-input-icon {
+  position: relative !important;
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  color: #777 !important;
+}
+
+.student-round-workspace .student-input-icon > svg {
+  position: absolute !important;
+  left: 14px !important;
+  z-index: 2 !important;
+  color: #777 !important;
+  pointer-events: none !important;
+}
+
+.student-round-workspace .student-input-icon > input,
+.student-round-workspace .student-round-form input,
+.student-round-workspace .student-round-form textarea {
+  width: 100% !important;
+  min-height: 48px !important;
+  padding: 13px 14px 13px 42px !important;
+  border: 1px solid #d4d4cd !important;
+  border-radius: 7px !important;
+  background: #fafaf7 !important;
+  color: #111111 !important;
+  outline: none !important;
+  font: 500 12px/1.5 Inter, system-ui, sans-serif !important;
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease !important;
+}
+
+.student-round-workspace .student-input-icon > input::placeholder {
+  color: #999992 !important;
+  opacity: 1 !important;
+}
+
+.student-round-workspace .student-input-icon > input:focus,
+.student-round-workspace .student-round-form input:focus,
+.student-round-workspace .student-round-form textarea:focus {
+  background: #ffffff !important;
+  border-color: #7566ff !important;
+  box-shadow: 0 0 0 3px rgba(117,102,255,.09) !important;
+}
+
+/* Submit button */
+.student-round-workspace .student-primary-btn {
+  width: 100% !important;
+  min-height: 48px !important;
+  margin-top: 10px !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: #a7d94b !important;
+  color: #111111 !important;
+  font: 900 10px/1 Inter, system-ui, sans-serif !important;
+  letter-spacing: .10em !important;
+  cursor: pointer !important;
+}
+
+.student-round-workspace .student-primary-btn:hover:not(:disabled) {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 10px 24px rgba(115,145,45,.18) !important;
+}
+
+.student-round-workspace .student-primary-btn:disabled {
+  opacity: .48 !important;
+  cursor: not-allowed !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* Notices / submitted state */
+.student-round-workspace .student-round-notice,
+.student-round-workspace .student-round-submitted {
+  min-height: 170px !important;
+  padding: 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-direction: column !important;
+  gap: 9px !important;
+  text-align: center !important;
+  border: 1px dashed #d4d4cd !important;
+  border-radius: 8px !important;
+  background: #fafaf7 !important;
+}
+
+.student-round-workspace .student-round-notice strong,
+.student-round-workspace .student-round-submitted strong {
+  color: #222222 !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: .04em !important;
+}
+
+.student-round-workspace .student-round-notice span,
+.student-round-workspace .student-round-submitted span {
+  max-width: 500px !important;
+  color: #777770 !important;
+  font-size: 10px !important;
+  line-height: 1.7 !important;
+}
+
+.student-round-workspace .student-round-submitted {
+  background: #f0f5e4 !important;
+  border-color: #d4e1b5 !important;
+  color: #5c751e !important;
+}
+
+.student-round-workspace .student-round-submitted svg {
+  color: #6f8e18 !important;
+}
+
+/* Completion state */
+.student-round-completed-workspace .student-feature-card {
+  opacity: 1 !important;
+}
+
+.student-round-completed-notice {
+  background: #f5f5ef !important;
+}
+
+/* Inline errors/success */
+.student-round-workspace ~ .student-inline-error,
+.student-inline-error {
+  border-color: #e5caca !important;
+  background: #fff6f6 !important;
+  color: #a03f3f !important;
+  font-size: 10px !important;
+  line-height: 1.6 !important;
+}
+
+.student-inline-success {
+  border-color: #d7e4b8 !important;
+  background: #f2f7e5 !important;
+  color: #5d731d !important;
+  font-size: 10px !important;
+  line-height: 1.6 !important;
+}
+
+/* Mobile */
+@media (max-width: 1050px) {
+  .student-round-workspace,
+  .student-feature-grid.student-round-workspace {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 780px) {
+  .student-round-workspace > .student-feature-card {
+    padding: 21px !important;
+  }
+
+  .student-round-workspace .student-feature-card h2 {
+    font-size: 24px !important;
+  }
+
+  .student-round-workspace .student-info-list > div {
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+  }
+
+  .student-round-workspace .student-round-form > label {
+    font-size: 8px !important;
+  }
+
+  .student-round-workspace .student-input-icon > input,
+  .student-round-workspace .student-round-form input {
+    min-height: 46px !important;
+    font-size: 11px !important;
+  }
+}
