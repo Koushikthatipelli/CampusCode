@@ -306,7 +306,6 @@ export const getRound2Status = async (req, res) => {
       SELECT
         t.id,
         t.name,
-        t.team_code,
         t.status,
         t.leader_id
       FROM team_members tm
