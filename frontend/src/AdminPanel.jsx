@@ -256,6 +256,8 @@ function AdminTopbar({ onMenu, user, section }) {
     evaluations: "Evaluations",
     results: "Results",
     activity: "System Activity",
+    system: "System Blueprint",
+    version: "Version Control",
     profile: "Profile",
   };
 
@@ -2665,7 +2667,7 @@ function AdminBlueprintScene({ rootId, selectedNode, onNodeClick, query = "", la
         <svg className="admin-blueprint-connections" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
           {visible.map((child, index) => {
             const [x, y] = positions[index];
-            return <g key={child.id} className={selectedId && selectedId !== child.id ? "connection-dim" : ""}>
+            return <g key={child.id} className={selectedNode?.id && selectedNode.id !== child.id ? "connection-dim" : ""}>
               <path className="admin-glass-connection" d={`M ${centerX} ${centerY} C ${centerX} ${centerY}, ${x} ${y}, ${x} ${y}`} />
               <circle className="admin-glass-packet" cx={centerX} cy={centerY} r="0.7"><animate attributeName="cx" values={`${centerX};${x};${centerX}`} dur="4.5s" begin={`${index * .35}s`} repeatCount="indefinite" /><animate attributeName="cy" values={`${centerY};${y};${centerY}`} dur="4.5s" begin={`${index * .35}s`} repeatCount="indefinite" /></circle>
             </g>;
@@ -2771,18 +2773,50 @@ function SystemBlueprintPage() {
   const [success, setSuccess] = useState("");
 
   const load = async () => {
-    setLoading(true); setError("");
-    try {
-      const [bp, h, s, m] = await Promise.all([
-        apiFetch("/superadmin/blueprint"),
-        apiFetch("/superadmin/health"),
-        apiFetch("/superadmin/stats"),
-        apiFetch("/superadmin/maintenance"),
-      ]);
-      setBlueprint(bp?.blueprint || bp?.system || bp?.data || bp || {});
-      setHealth(h); setStats(s?.statistics || s?.stats || s?.data || s || {}); setMaintenance(m);
-    } catch (e) { setError(e.message || "Unable to load CampusCode system blueprint."); }
-    finally { setLoading(false); }
+    setLoading(true);
+    setError("");
+
+    const results = await Promise.allSettled([
+      apiFetch("/superadmin/blueprint"),
+      apiFetch("/superadmin/health"),
+      apiFetch("/superadmin/stats"),
+      apiFetch("/superadmin/maintenance"),
+    ]);
+
+    const [bp, h, s, m] = results;
+
+    if (bp.status === "fulfilled") {
+      setBlueprint(
+        bp.value?.blueprint ||
+        bp.value?.system ||
+        bp.value?.data ||
+        bp.value ||
+        {}
+      );
+    } else {
+      // The architecture page must remain usable even if telemetry/
+      // observability APIs are unavailable. The frontend blueprint is the
+      // source of truth for navigation and is already defined above.
+      setBlueprint({});
+      setError(
+        bp.reason?.message ||
+        "Live blueprint API unavailable. Showing the local architecture map."
+      );
+    }
+
+    if (h.status === "fulfilled") setHealth(h.value);
+    if (s.status === "fulfilled") {
+      setStats(
+        s.value?.statistics ||
+        s.value?.stats ||
+        s.value?.data ||
+        s.value ||
+        {}
+      );
+    }
+    if (m.status === "fulfilled") setMaintenance(m.value);
+
+    setLoading(false);
   };
 
   useEffect(() => { load(); }, []);
