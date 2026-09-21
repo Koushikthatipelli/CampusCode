@@ -1840,3 +1840,571 @@ body,
     width: max-content !important;
   }
 }
+/* ============================================================
+   CAMPUSCODE MODERN SUBMISSION REVIEW MODAL
+   R1 / R2 / R3
+============================================================ */
+
+.organizer-review-modal-backdrop {
+  background: rgba(15, 23, 42, 0.42) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.organizer-review-modal.organizer-submission-modal {
+  width: min(1040px, 100%) !important;
+  max-height: calc(100vh - 32px) !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 24px !important;
+
+  background: #f8fafc !important;
+  color: #0f172a !important;
+
+  box-shadow:
+    0 28px 90px rgba(15, 23, 42, 0.24) !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-modal-head {
+  padding: 26px 28px 20px !important;
+
+  background: #ffffff !important;
+
+  border-bottom:
+    1px solid #e2e8f0 !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-modal-head
+  > div
+  > span {
+  color:
+    var(--org-neon, #16a34a) !important;
+
+  font-size: 10px !important;
+  letter-spacing: .14em !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-modal-head
+  h2 {
+  color: #0f172a !important;
+  font-size: 28px !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-modal-head
+  p {
+  color: #64748b !important;
+  font-size: 13px !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-close {
+  display: grid !important;
+  place-items: center !important;
+
+  width: 38px !important;
+  height: 38px !important;
+
+  border:
+    1px solid #e2e8f0 !important;
+
+  border-radius: 12px !important;
+
+  background: #f8fafc !important;
+  color: #475569 !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-close:hover {
+  background: #eef2f7 !important;
+  color: #0f172a !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-status-row {
+  padding: 14px 28px !important;
+
+  background: #f1f5f9 !important;
+
+  border-bottom:
+    1px solid #e2e8f0 !important;
+
+  color: #475569 !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-status-row
+  b {
+  color: #0f172a !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-details {
+  padding:
+    22px 28px 0 !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-detail-card {
+  border:
+    1px solid #e2e8f0 !important;
+
+  border-radius: 16px !important;
+
+  background: #ffffff !important;
+
+  box-shadow:
+    0 6px 20px
+    rgba(15, 23, 42, 0.04) !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-detail-card
+  p {
+  color: #334155 !important;
+  line-height: 1.7 !important;
+}
+
+.organizer-submission-modal
+  .organizer-review-detail-card
+  a {
+  color: #15803d !important;
+}
+
+
+/* ============================================================
+   AI SHOWCASE
+============================================================ */
+
+.organizer-submission-modal
+  .organizer-ai-showcase {
+  margin:
+    22px 28px 0 !important;
+
+  padding: 20px !important;
+
+  border:
+    1px solid
+    rgba(22, 163, 74, 0.22) !important;
+
+  border-radius: 20px !important;
+
+  background:
+    linear-gradient(
+      180deg,
+      #f0fdf4 0%,
+      #ffffff 100%
+    ) !important;
+
+  box-shadow:
+    0 12px 30px
+    rgba(22, 101, 52, 0.08) !important;
+}
+
+.organizer-submission-modal
+  .organizer-ai-panel-head {
+  padding-bottom: 16px !important;
+
+  border-bottom:
+    1px solid #dcfce7 !important;
+}
+
+.organizer-submission-modal
+  .organizer-ai-panel-head
+  strong {
+  color: #166534 !important;
+}
+
+.organizer-submission-modal
+  .ai-analyze-btn {
+  border:
+    1px solid #16a34a !important;
+
+  background: #16a34a !important;
+
+  color: #ffffff !important;
+
+  box-shadow:
+    0 8px 20px
+    rgba(22, 163, 74, 0.18) !important;
+}
+
+.organizer-submission-modal
+  .ai-analyze-btn:hover:not(:disabled) {
+  background: #15803d !important;
+}
+
+
+/* ============================================================
+   BIG AI SCORE
+============================================================ */
+
+.organizer-ai-score-hero {
+  display: grid;
+
+  grid-template-columns:
+    minmax(0, 1.2fr)
+    minmax(180px, .8fr);
+
+  gap: 14px;
+
+  margin-top: 16px;
+}
+
+.organizer-ai-score-hero > div {
+  min-height: 132px;
+
+  padding: 18px;
+
+  border:
+    1px solid #dcfce7;
+
+  border-radius: 16px;
+
+  background: #ffffff;
+}
+
+.organizer-ai-score-hero span,
+.organizer-ai-response-title span,
+.organizer-ai-insight > span {
+  display: block;
+
+  color: #64748b;
+
+  font-size: 10px;
+
+  font-weight: 800;
+
+  letter-spacing: .12em;
+}
+
+.organizer-ai-score-hero strong {
+  display: block;
+
+  margin-top: 5px;
+
+  color: #15803d;
+
+  font-size: 46px;
+
+  line-height: 1;
+
+  letter-spacing: -.05em;
+}
+
+.organizer-ai-score-hero small {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.organizer-ai-recommendation b {
+  display: block;
+
+  margin-top: 14px;
+
+  color: #0f172a;
+
+  font-size: 20px;
+}
+
+
+/* ============================================================
+   R2 AI METRICS
+============================================================ */
+
+.organizer-submission-modal
+  .organizer-ai-metrics {
+  display: grid !important;
+
+  grid-template-columns:
+    repeat(5, minmax(0, 1fr)) !important;
+
+  gap: 10px !important;
+
+  margin-top: 12px !important;
+}
+
+.organizer-submission-modal
+  .organizer-ai-metrics
+  > div {
+  padding: 13px !important;
+
+  border:
+    1px solid #e2e8f0 !important;
+
+  border-radius: 13px !important;
+
+  background: #ffffff !important;
+}
+
+.organizer-submission-modal
+  .organizer-ai-metrics
+  span {
+  display: block !important;
+
+  color: #64748b !important;
+
+  font-size: 10px !important;
+}
+
+.organizer-submission-modal
+  .organizer-ai-metrics
+  b {
+  display: block !important;
+
+  margin-top: 5px !important;
+
+  color: #0f172a !important;
+
+  font-size: 20px !important;
+}
+
+
+/* ============================================================
+   AI RESPONSE
+============================================================ */
+
+.organizer-ai-response-box {
+  margin-top: 12px;
+
+  padding: 17px;
+
+  border:
+    1px solid #e2e8f0;
+
+  border-radius: 16px;
+
+  background: #ffffff;
+}
+
+.organizer-ai-response-title {
+  display: flex;
+
+  align-items: center;
+
+  justify-content:
+    space-between;
+
+  gap: 12px;
+}
+
+.organizer-ai-live-dot {
+  padding: 5px 8px;
+
+  border-radius: 999px;
+
+  background: #ecfdf5;
+
+  color: #15803d !important;
+
+  font-size: 9px !important;
+}
+
+.organizer-ai-response-box p {
+  margin: 12px 0 0;
+
+  color: #334155;
+
+  line-height: 1.7;
+
+  white-space: pre-wrap;
+}
+
+
+/* ============================================================
+   STRENGTHS / WEAKNESSES / SUGGESTIONS
+============================================================ */
+
+.organizer-ai-insight-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 10px;
+
+  margin-top: 12px;
+}
+
+.organizer-ai-insight {
+  padding: 15px;
+
+  border:
+    1px solid #e2e8f0;
+
+  border-radius: 15px;
+
+  background: #ffffff;
+}
+
+.organizer-ai-insight ul {
+  margin: 10px 0 0;
+
+  padding-left: 18px;
+
+  color: #475569;
+
+  line-height: 1.55;
+
+  font-size: 13px;
+}
+
+
+/* ============================================================
+   FEEDBACK
+============================================================ */
+
+.organizer-submission-modal
+  .organizer-existing-feedback,
+.organizer-submission-modal
+  .organizer-manual-review-panel {
+  margin:
+    18px 28px 0 !important;
+
+  border:
+    1px solid #e2e8f0 !important;
+
+  border-radius: 16px !important;
+
+  background: #ffffff !important;
+}
+
+.organizer-submission-modal
+  .organizer-existing-feedback p,
+.organizer-submission-modal
+  .organizer-manual-review-panel p {
+  color: #475569 !important;
+
+  line-height: 1.65 !important;
+}
+
+
+/* ============================================================
+   REVIEW FORM
+============================================================ */
+
+.organizer-submission-modal
+  .organizer-review-form {
+  margin-top: 20px !important;
+
+  padding:
+    22px 28px 28px !important;
+
+  background: #ffffff !important;
+
+  border-top:
+    1px solid #e2e8f0 !important;
+}
+
+.organizer-submission-modal
+  .org-input {
+  color: #0f172a !important;
+
+  background: #f8fafc !important;
+
+  border-color:
+    #cbd5e1 !important;
+}
+
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media (max-width: 760px) {
+  .organizer-ai-score-hero,
+  .organizer-ai-insight-grid {
+    grid-template-columns:
+      1fr !important;
+  }
+
+  .organizer-submission-modal
+    .organizer-ai-metrics {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr))
+      !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .organizer-submission-modal
+    .organizer-review-modal-head,
+  .organizer-submission-modal
+    .organizer-review-details,
+  .organizer-submission-modal
+    .organizer-review-form {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  .organizer-submission-modal
+    .organizer-ai-showcase,
+  .organizer-submission-modal
+    .organizer-existing-feedback,
+  .organizer-submission-modal
+    .organizer-manual-review-panel {
+    margin-left: 16px !important;
+    margin-right: 16px !important;
+  }
+
+  .organizer-submission-modal
+    .organizer-ai-metrics {
+    grid-template-columns:
+      1fr 1fr !important;
+  }
+}
+
+/* =========================================================
+   CAMPUSCODE ORGANIZER SHARED BACKGROUND
+   Same Gradient Glow language as Student Panel, with the
+   Organizer's existing purple / violet accent.
+========================================================= */
+.organizer-page{
+  position:relative;
+  isolation:isolate;
+  background:
+    radial-gradient(circle at 84% 4%,rgba(124,58,237,.12),transparent 27%),
+    radial-gradient(circle at 10% 88%,rgba(99,102,241,.09),transparent 28%),
+    radial-gradient(circle at 52% 45%,rgba(255,255,255,.72),transparent 43%),
+    #f6f4ff !important;
+}
+.organizer-page .org-bg{
+  z-index:0 !important;
+  opacity:1 !important;
+}
+.organizer-page .org-grid{
+  opacity:.28 !important;
+  background-image:
+    linear-gradient(rgba(124,58,237,.09) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(124,58,237,.09) 1px,transparent 1px) !important;
+  background-size:62px 62px !important;
+  mask-image:linear-gradient(to bottom,#000,transparent 92%);
+  -webkit-mask-image:linear-gradient(to bottom,#000,transparent 92%);
+}
+.organizer-page .org-orb{
+  filter:blur(105px) !important;
+  opacity:.75;
+}
+.organizer-page .orb-one{
+  width:500px !important;
+  height:500px !important;
+  right:-80px !important;
+  top:-230px !important;
+  background:rgba(139,92,246,.10) !important;
+}
+.organizer-page .orb-two{
+  width:430px !important;
+  height:430px !important;
+  left:15% !important;
+  bottom:-280px !important;
+  background:rgba(99,102,241,.085) !important;
+}
+.organizer-main,.organizer-sidebar,.org-topbar{position:relative}
+.organizer-main{z-index:2}
+.organizer-sidebar{z-index:50}
+.org-topbar{z-index:30}

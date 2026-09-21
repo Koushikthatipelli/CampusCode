@@ -4776,3 +4776,213 @@ html, body, #root {
     font-size: 11px !important;
   }
 }
+
+
+/* =========================================================
+   CAMPUSCODE SHARED BACKGROUND — GRADIENT GLOW
+   Keep this behind every Student Panel page.
+========================================================= */
+.student-panel{
+  position:relative;
+  isolation:isolate;
+  background:
+    radial-gradient(circle at 82% 4%, rgba(117,102,255,.105), transparent 25%),
+    radial-gradient(circle at 12% 88%, rgba(167,217,75,.105), transparent 28%),
+    radial-gradient(circle at 52% 48%, rgba(255,255,255,.62), transparent 42%),
+    #f7f7f4 !important;
+}
+.student-bg-grid{
+  z-index:0 !important;
+  opacity:.52 !important;
+  background-image:
+    linear-gradient(rgba(17,17,17,.035) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(17,17,17,.035) 1px,transparent 1px) !important;
+  background-size:56px 56px !important;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 92%);
+  -webkit-mask-image:linear-gradient(to bottom,rgba(0,0,0,.9),transparent 92%);
+}
+.student-bg-orb{
+  z-index:0 !important;
+  width:520px !important;
+  height:520px !important;
+  opacity:.16 !important;
+  filter:blur(95px) !important;
+}
+.student-bg-orb.one{
+  background:#9b8cff !important;
+  top:-240px !important;
+  right:-80px !important;
+}
+.student-bg-orb.two{
+  background:#a7d94b !important;
+  bottom:-300px !important;
+  left:16% !important;
+}
+.student-main,.student-sidebar,.student-mobile-topbar{
+  position:relative;
+}
+.student-main{z-index:5}
+.student-sidebar{z-index:20}
+.student-mobile-topbar{z-index:60}
+
+/* =========================================================
+   PARTICIPANT AGREEMENT — missing light-theme styling
+========================================================= */
+.student-agreement-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:200;
+  display:grid;
+  place-items:center;
+  padding:22px;
+  background:rgba(17,17,24,.34);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  animation:studentAgreementFade .2s ease both;
+}
+.student-agreement-modal{
+  position:relative;
+  width:min(620px,100%);
+  max-height:min(760px,calc(100vh - 44px));
+  overflow:auto;
+  padding:30px;
+  border:1px solid #deded8;
+  border-radius:20px;
+  background:rgba(255,255,255,.97);
+  color:#111;
+  box-shadow:0 28px 90px rgba(24,20,45,.18),0 8px 28px rgba(24,20,45,.08);
+  animation:studentAgreementIn .28s cubic-bezier(.2,.8,.2,1) both;
+}
+.student-agreement-close{
+  position:absolute;
+  top:15px;
+  right:15px;
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border:1px solid #deded8;
+  border-radius:9px;
+  background:#fafaf7;
+  color:#777;
+  font-size:22px;
+  line-height:1;
+  cursor:pointer;
+  transition:.2s ease;
+}
+.student-agreement-close:hover{color:#111;border-color:#c8c8c0;background:#f2f2ed}
+.student-agreement-modal .student-feature-label{
+  display:block;
+  color:#6f8e18;
+  font:900 8px/1 Inter,system-ui,sans-serif;
+  letter-spacing:.18em;
+}
+.student-agreement-modal h2{
+  margin:10px 45px 9px 0;
+  color:#111;
+  font-size:32px;
+  line-height:1;
+  letter-spacing:-.055em;
+}
+.student-agreement-intro{
+  margin:0;
+  color:#666;
+  font-size:10px;
+  line-height:1.75;
+}
+.student-agreement-intro strong{color:#222}
+.student-agreement-points{
+  display:grid;
+  gap:8px;
+  margin:22px 0;
+}
+.student-agreement-points>div{
+  display:grid;
+  grid-template-columns:34px 1fr;
+  gap:12px;
+  padding:13px 14px;
+  border:1px solid #e4e4de;
+  border-radius:11px;
+  background:#fafaf7;
+}
+.student-agreement-points>div>b{
+  display:grid;
+  place-items:center;
+  width:27px;
+  height:27px;
+  border-radius:7px;
+  background:#f0edff;
+  color:#7566ff;
+  font:900 8px/1 'DM Mono',monospace;
+}
+.student-agreement-points>div span{display:block;color:#666;font-size:9px;line-height:1.6}
+.student-agreement-points>div span strong{display:block;margin-bottom:2px;color:#222;font-size:9px}
+.student-agreement-check{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:14px;
+  border:1px solid #ddd8f3;
+  border-radius:11px;
+  background:#f8f6ff;
+  color:#333;
+  font-size:9px;
+  font-weight:700;
+  line-height:1.5;
+  cursor:pointer;
+}
+.student-agreement-check input{
+  appearance:none;
+  -webkit-appearance:none;
+  flex:0 0 auto;
+  width:17px;
+  height:17px;
+  margin:0;
+  border:1px solid #c9c4dc;
+  border-radius:5px;
+  background:#fff;
+  cursor:pointer;
+  position:relative;
+}
+.student-agreement-check input:checked{
+  border-color:#7566ff;
+  background:#7566ff;
+}
+.student-agreement-check input:checked::after{
+  content:'✓';
+  position:absolute;
+  inset:0;
+  display:grid;
+  place-items:center;
+  color:#fff;
+  font-size:11px;
+  font-weight:900;
+}
+.student-agreement-actions{
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top:18px;
+}
+.student-agreement-actions .student-primary-btn:disabled{
+  opacity:.42;
+  cursor:not-allowed;
+  transform:none;
+  box-shadow:none;
+}
+.student-agreement-version{
+  display:block;
+  margin-top:13px;
+  color:#999;
+  font:500 7px/1.5 'DM Mono',monospace;
+  letter-spacing:.03em;
+}
+@keyframes studentAgreementFade{from{opacity:0}to{opacity:1}}
+@keyframes studentAgreementIn{from{opacity:0;transform:translateY(12px) scale(.985)}to{opacity:1;transform:none}}
+@media(max-width:600px){
+  .student-agreement-backdrop{padding:12px}
+  .student-agreement-modal{padding:24px 18px;max-height:calc(100vh - 24px);border-radius:16px}
+  .student-agreement-modal h2{font-size:27px}
+  .student-agreement-actions{flex-direction:column-reverse}
+  .student-agreement-actions button{width:100%}
+}

@@ -623,3 +623,261 @@ export async function analyzeProjectWithAI(
     model_name: model,
   };
 }
+/* =========================================================
+   ANALYZE ROUND 2 PROJECT WITH AI
+
+   Shared by:
+   - automatic student-side analysis after submission
+   - organizer manual Analyze / Re-analyze
+
+   Gemini request uses the same retry + fallback pipeline
+   already used by Round 1.
+
+   This function does NOT write to the database.
+   The controller handles database persistence.
+========================================================= */
+
+export async function analyzeRound2ProjectWithAI({
+  hackathon_title,
+  github_url,
+  pdf_text,
+}) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error(
+      "GEMINI_API_KEY is not configured"
+    );
+  }
+
+  const githubUrl =
+    typeof github_url === "string" &&
+    github_url.trim()
+      ? github_url.trim()
+      : "Not provided";
+
+  const pdfText =
+    typeof pdf_text === "string"
+      ? pdf_text.trim()
+      : "";
+
+  if (pdfText.length < 20) {
+    throw new Error(
+      "Round 2 PDF text is too short for AI analysis"
+    );
+  }
+
+  const maxCharacters = 30000;
+
+  const limitedPdfText =
+    pdfText.length > maxCharacters
+      ? pdfText.substring(
+          0,
+          maxCharacters
+        ) +
+        "\n\n[PDF text truncated for AI analysis]"
+      : pdfText;
+
+  const prompt = `
+You are an AI evaluation assistant for a student hackathon.
+
+You are analyzing a Round 2 project submission.
+
+Your job is to evaluate the project fairly and provide a recommendation to the human organizer.
+
+IMPORTANT:
+- Do NOT make the final winner decision.
+- The organizer is the final decision-maker.
+- Base the evaluation only on the information provided.
+- Do not invent project features.
+- If information is missing, mention that clearly.
+- Do not evaluate information that is not supplied.
+
+Evaluate these five categories from 0 to 100:
+
+1. Novelty
+2. Relevance
+3. Innovation
+4. Technical Quality
+5. Impact
+
+Then calculate an overall score from 0 to 100.
+
+Recommendation must be exactly ONE of:
+
+SELECT
+REVIEW
+REJECT
+
+Meaning:
+
+SELECT:
+The project appears strong and suitable to proceed based on the available information.
+
+REVIEW:
+The project has potential, but the organizer should manually inspect it carefully.
+
+REJECT:
+The project appears to have major issues based on the available information.
+
+Also provide:
+- strengths
+- weaknesses
+- improvement suggestions
+- detailed evaluation feedback
+
+Return ONLY valid JSON.
+
+Required JSON format:
+
+{
+  "novelty_score": 0,
+  "relevance_score": 0,
+  "innovation_score": 0,
+  "technical_score": 0,
+  "impact_score": 0,
+  "overall_score": 0,
+  "recommendation": "SELECT",
+  "strengths": [],
+  "weaknesses": [],
+  "suggestions": [],
+  "feedback": ""
+}
+
+HACKATHON:
+${hackathon_title || "Not provided"}
+
+GITHUB URL:
+${githubUrl}
+
+PROJECT REPORT EXTRACTED FROM PDF:
+${limitedPdfText}
+`;
+
+  const {
+    outputText,
+    model,
+  } = await callGemini(prompt);
+
+  const analysis =
+    extractJson(outputText);
+
+  const scoreFields = [
+    "novelty_score",
+    "relevance_score",
+    "innovation_score",
+    "technical_score",
+    "impact_score",
+    "overall_score",
+  ];
+
+  for (const field of scoreFields) {
+    const value =
+      Number(analysis[field]);
+
+    if (
+      !Number.isFinite(value) ||
+      value < 0 ||
+      value > 100
+    ) {
+      throw new Error(
+        `Invalid AI score for ${field}`
+      );
+    }
+
+    analysis[field] =
+      Number(value.toFixed(2));
+  }
+
+  /*
+   * Always calculate the overall score
+   * from the five evaluation categories.
+   */
+  const calculatedOverall =
+    (
+      analysis.novelty_score +
+      analysis.relevance_score +
+      analysis.innovation_score +
+      analysis.technical_score +
+      analysis.impact_score
+    ) / 5;
+
+  analysis.overall_score =
+    Number(
+      calculatedOverall.toFixed(2)
+    );
+
+  const allowedRecommendations = [
+    "SELECT",
+    "REVIEW",
+    "REJECT",
+  ];
+
+  let recommendation =
+    String(
+      analysis.recommendation ||
+        "REVIEW"
+    )
+      .trim()
+      .toUpperCase();
+
+  if (
+    !allowedRecommendations.includes(
+      recommendation
+    )
+  ) {
+    recommendation = "REVIEW";
+  }
+
+  const feedback = {
+    strengths:
+      Array.isArray(
+        analysis.strengths
+      )
+        ? analysis.strengths
+        : [],
+
+    weaknesses:
+      Array.isArray(
+        analysis.weaknesses
+      )
+        ? analysis.weaknesses
+        : [],
+
+    suggestions:
+      Array.isArray(
+        analysis.suggestions
+      )
+        ? analysis.suggestions
+        : [],
+
+    feedback:
+      String(
+        analysis.feedback || ""
+      ),
+  };
+
+  if (!feedback.feedback.trim()) {
+    throw new Error(
+      "AI feedback is missing"
+    );
+  }
+
+  return {
+    ...analysis,
+
+    recommendation,
+
+    strengths:
+      feedback.strengths,
+
+    weaknesses:
+      feedback.weaknesses,
+
+    suggestions:
+      feedback.suggestions,
+
+    feedback:
+      feedback.feedback,
+
+    model_name: model,
+  };
+}

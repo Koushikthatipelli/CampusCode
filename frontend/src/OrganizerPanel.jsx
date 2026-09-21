@@ -222,9 +222,9 @@ function OrganizerPanel({
   return (
     <div className="organizer-page">
       <div className="org-bg">
-        <span className="org-orb orb-one" />
-        <span className="org-orb orb-two" />
-        <span className="org-grid" />
+        <span className="org-orb orb-one" aria-hidden="true" />
+        <span className="org-orb orb-two" aria-hidden="true" />
+        <span className="org-grid" aria-hidden="true" />
       </div>
 
       {sidebarOpen && (
@@ -1817,160 +1817,519 @@ function OrganizerSubmissionModal({
   onDecision,
   onRound3Decision,
 }) {
-  const id = submission?.id || submission?.submission_id;
-  const isRound3 = round === 3;
-  const aiBusy = busy === `ai-${round}-${id}`;
-  const decision = submission?.decision?.decision || submission?.decision || submission?.status || "PENDING";
-  const ai = submission?.ai_analysis || submission?.ai || {};
+  const id =
+    submission?.id ||
+    submission?.submission_id;
+
+  const isRound3 =
+    round === 3;
+
+  const aiBusy =
+    busy === `ai-${round}-${id}`;
+
+  const decision =
+    submission?.decision?.decision ||
+    submission?.decision ||
+    submission?.status ||
+    "PENDING";
+
+  const ai =
+    submission?.ai_analysis ||
+    submission?.ai ||
+    {};
 
   const title =
     round === 1
-      ? submission?.team_name || submission?.team?.name || `Team ${submission?.team_id || "—"}`
+      ? submission?.team_name ||
+        submission?.team?.name ||
+        `Team ${submission?.team_id || "—"}`
       : round === 2
-        ? submission?.project_title || submission?.project?.title || "Project submission"
-        : submission?.team_name || `Team ${submission?.team_id || "—"}`;
+        ? submission?.project_title ||
+          submission?.project?.title ||
+          submission?.team_name ||
+          "Project submission"
+        : submission?.team_name ||
+          `Team ${submission?.team_id || "—"}`;
 
-  const feedbackLabel = round === 3 ? "Organizer feedback" : "Organizer feedback";
+  const aiScore =
+    round === 1
+      ? submission?.ai_score ??
+        ai?.score ??
+        ai?.overall_score
+      : ai?.overall_score ??
+        submission?.overall_score;
+
+  const aiRecommendation =
+    submission?.ai_recommendation ||
+    ai?.recommendation ||
+    "—";
+
+  const rawFeedback =
+    submission?.ai_feedback ??
+    ai?.feedback;
+
+  const aiFeedback =
+    typeof rawFeedback === "string"
+      ? rawFeedback
+      : rawFeedback?.feedback ||
+        "No AI feedback yet.";
+
+  const strengths =
+    Array.isArray(ai?.strengths)
+      ? ai.strengths
+      : [];
+
+  const weaknesses =
+    Array.isArray(ai?.weaknesses)
+      ? ai.weaknesses
+      : [];
+
+  const suggestions =
+    Array.isArray(ai?.suggestions)
+      ? ai.suggestions
+      : [];
 
   return (
-    <div className="organizer-review-modal-backdrop" onMouseDown={onClose}>
+    <div
+      className="organizer-review-modal-backdrop"
+      onMouseDown={onClose}
+    >
       <div
         className="organizer-review-modal organizer-submission-modal"
-        onMouseDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) =>
+          event.stopPropagation()
+        }
         role="dialog"
         aria-modal="true"
         aria-labelledby="organizer-submission-title"
       >
+        {/* HEADER */}
         <div className="organizer-review-modal-head">
           <div>
-            <span>ROUND 0{round} / {isRound3 ? "MANUAL REVIEW" : "AI + ORGANIZER REVIEW"}</span>
-            <h2 id="organizer-submission-title">{title}</h2>
+            <span>
+              ROUND 0{round} /{" "}
+              {isRound3
+                ? "MANUAL REVIEW"
+                : "AI + ORGANIZER REVIEW"}
+            </span>
+
+            <h2 id="organizer-submission-title">
+              {title}
+            </h2>
+
             <p>
-              {submission?.submitted_by_name || submission?.submitted_by?.name || "Team member"}
-              {submission?.submitted_by_email ? ` · ${submission.submitted_by_email}` : ""}
+              {submission?.submitted_by_name ||
+                submission?.submitted_by?.name ||
+                "Team member"}
+
+              {submission?.submitted_by_email
+                ? ` · ${submission.submitted_by_email}`
+                : ""}
             </p>
           </div>
-          <button className="organizer-review-close" onClick={onClose} aria-label="Close submission">
+
+          <button
+            className="organizer-review-close"
+            onClick={onClose}
+            aria-label="Close submission"
+          >
             <X size={19} />
           </button>
         </div>
 
+        {/* STATUS */}
         <div className="organizer-review-status-row">
-          <span className={`status-pill ${statusClass(decision)}`}>{decision}</span>
-          {isRound3 && <span>Score: <b>{submission?.score ?? "Not scored"}</b></span>}
-          <span>Submitted: <b>{dateText(submission?.submitted_at || submission?.created_at)}</b></span>
+          <span
+            className={`status-pill ${statusClass(
+              decision
+            )}`}
+          >
+            {decision}
+          </span>
+
+          {!isRound3 &&
+            aiScore !== null &&
+            aiScore !== undefined && (
+              <span>
+                AI Score: <b>{aiScore}</b>
+              </span>
+            )}
+
+          {isRound3 && (
+            <span>
+              Score:{" "}
+              <b>
+                {submission?.score ??
+                  "Not scored"}
+              </b>
+            </span>
+          )}
+
+          <span>
+            Submitted:{" "}
+            <b>
+              {dateText(
+                submission?.submitted_at ||
+                  submission?.created_at
+              )}
+            </b>
+          </span>
         </div>
 
+        {/* SUBMISSION DETAILS */}
         <div className="organizer-review-details">
           {round === 1 ? (
             <>
               <div className="organizer-review-detail-card organizer-review-detail-wide">
-                <span>PROBLEM STATEMENT</span>
-                <p>{submission?.problem_statement || "No problem statement provided."}</p>
+                <span>
+                  PROBLEM STATEMENT
+                </span>
+
+                <p>
+                  {submission?.problem_statement ||
+                    "No problem statement provided."}
+                </p>
               </div>
+
               <div className="organizer-review-detail-card organizer-review-detail-wide">
-                <span>PROJECT DESCRIPTION</span>
-                <p>{submission?.project_description || submission?.description || "No project description provided."}</p>
+                <span>
+                  PROJECT DESCRIPTION
+                </span>
+
+                <p>
+                  {submission?.project_description ||
+                    submission?.description ||
+                    submission?.problem_statement ||
+                    "No project description provided."}
+                </p>
               </div>
             </>
           ) : (
             <>
               <div className="organizer-review-detail-card organizer-review-detail-wide">
-                <span>PROJECT DESCRIPTION</span>
-                <p>{submission?.project_description || submission?.description || "No project description provided."}</p>
+                <span>
+                  PROJECT DESCRIPTION
+                </span>
+
+                <p>
+                  {submission?.project_description ||
+                    submission?.description ||
+                    submission?.problem_statement ||
+                    "No project description provided."}
+                </p>
               </div>
+
               {submission?.github_url && (
                 <div className="organizer-review-detail-card">
-                  <span>GITHUB REPOSITORY</span>
-                  <a href={submission.github_url} target="_blank" rel="noreferrer">
-                    <FolderGit2 size={15} /> Open GitHub repository ↗
+                  <span>
+                    GITHUB REPOSITORY
+                  </span>
+
+                  <a
+                    href={
+                      submission.github_url
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <FolderGit2 size={15} />
+                    Open GitHub repository ↗
                   </a>
                 </div>
               )}
-              {(submission?.demo_url || submission?.demo) && (
+
+              {(submission?.demo_url ||
+                submission?.demo) && (
                 <div className="organizer-review-detail-card">
-                  <span>LIVE DEMO</span>
-                  <a href={submission.demo_url || submission.demo} target="_blank" rel="noreferrer">
-                    <ArrowRight size={15} /> Open live demo ↗
+                  <span>
+                    LIVE DEMO
+                  </span>
+
+                  <a
+                    href={
+                      submission.demo_url ||
+                      submission.demo
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <ArrowRight size={15} />
+                    Open live demo ↗
                   </a>
                 </div>
               )}
-              {(submission?.pdf_url || submission?.pdf_file_url || submission?.pdf) && (
+
+              {(submission?.pdf_url ||
+                submission?.pdf_file_url ||
+                submission?.pdf) && (
                 <div className="organizer-review-detail-card organizer-review-detail-wide">
-                  <span>PDF / DOCUMENT</span>
-                  <a href={submission.pdf_url || submission.pdf_file_url || submission.pdf} target="_blank" rel="noreferrer">
-                    <Send size={15} /> Open submitted PDF ↗
+                  <span>
+                    PDF / DOCUMENT
+                  </span>
+
+                  <a
+                    href={
+                      submission.pdf_url ||
+                      submission.pdf_file_url ||
+                      submission.pdf
+                    }
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <Send size={15} />
+                    Open submitted PDF ↗
                   </a>
                 </div>
               )}
             </>
           )}
-
-          {submission?.github_url && round === 1 && (
-            <div className="organizer-review-detail-card">
-              <span>GITHUB REPOSITORY</span>
-              <a href={submission.github_url} target="_blank" rel="noreferrer">
-                <FolderGit2 size={15} /> Open GitHub repository ↗
-              </a>
-            </div>
-          )}
-
-          {submission?.demo_url && round === 1 && (
-            <div className="organizer-review-detail-card">
-              <span>LIVE DEMO</span>
-              <a href={submission.demo_url} target="_blank" rel="noreferrer">
-                <ArrowRight size={15} /> Open live demo ↗
-              </a>
-            </div>
-          )}
         </div>
 
+        {/* GEMINI AI */}
         {!isRound3 && (
-          <div className="organizer-ai-panel">
+          <section className="organizer-ai-panel organizer-ai-showcase">
             <div className="organizer-ai-panel-head">
               <div>
-                <span>GEMINI AI ANALYSIS</span>
-                <strong>Advisory only</strong>
+                <span>
+                  GEMINI AI ANALYSIS
+                </span>
+
+                <strong>
+                  Decision support · organizer remains final reviewer
+                </strong>
               </div>
+
               <button
                 className="ai-analyze-btn small"
-                disabled={!id || !!busy}
-                onClick={() => onAnalyze(id, round)}
+                disabled={
+                  !id || !!busy
+                }
+                onClick={() =>
+                  onAnalyze(id, round)
+                }
               >
-                {aiBusy ? <LoaderCircle size={13} className="spin" /> : <Sparkles size={13} />}
-                {aiBusy ? "Analyzing..." : "Run AI analysis"}
+                {aiBusy ? (
+                  <LoaderCircle
+                    size={13}
+                    className="spin"
+                  />
+                ) : (
+                  <Sparkles size={13} />
+                )}
+
+                {aiBusy
+                  ? "Analyzing..."
+                  : "Analyze / Re-analyze"}
               </button>
             </div>
 
-            {round === 1 ? (
-              <div className="organizer-ai-detail-grid">
-                <div><span>AI SCORE</span><b>{submission?.ai_score ?? ai?.score ?? "—"}</b></div>
-                <div><span>RECOMMENDATION</span><b>{submission?.ai_recommendation ?? ai?.recommendation ?? "—"}</b></div>
-                <div className="wide"><span>AI FEEDBACK</span><p>{submission?.ai_feedback ?? ai?.feedback ?? "No AI analysis yet."}</p></div>
+            {/* BIG SCORE */}
+            <div className="organizer-ai-score-hero">
+              <div>
+                <span>
+                  AI OVERALL SCORE
+                </span>
+
+                <strong>
+                  {aiScore ?? "—"}
+                </strong>
+
+                <small>
+                  out of 100
+                </small>
               </div>
-            ) : (
-              <div className="organizer-ai-detail-grid">
-                <div><span>OVERALL</span><b>{ai?.overall_score ?? submission?.overall_score ?? "—"}</b></div>
-                <div><span>NOVELTY</span><b>{ai?.novelty_score ?? "—"}</b></div>
-                <div><span>TECHNICAL</span><b>{ai?.technical_score ?? "—"}</b></div>
-                <div><span>IMPACT</span><b>{ai?.impact_score ?? "—"}</b></div>
-                <div className="wide"><span>AI FEEDBACK</span><p>{ai?.feedback ?? ai?.summary ?? submission?.ai_feedback ?? "No AI analysis yet."}</p></div>
+
+              <div className="organizer-ai-recommendation">
+                <span>
+                  RECOMMENDATION
+                </span>
+
+                <b>
+                  {aiRecommendation}
+                </b>
+              </div>
+            </div>
+
+            {/* R2 METRICS */}
+            {round === 2 && (
+              <div className="organizer-ai-metrics">
+                <div>
+                  <span>Novelty</span>
+                  <b>
+                    {ai?.novelty_score ??
+                      "—"}
+                  </b>
+                </div>
+
+                <div>
+                  <span>Relevance</span>
+                  <b>
+                    {ai?.relevance_score ??
+                      "—"}
+                  </b>
+                </div>
+
+                <div>
+                  <span>Innovation</span>
+                  <b>
+                    {ai?.innovation_score ??
+                      "—"}
+                  </b>
+                </div>
+
+                <div>
+                  <span>Technical</span>
+                  <b>
+                    {ai?.technical_score ??
+                      "—"}
+                  </b>
+                </div>
+
+                <div>
+                  <span>Impact</span>
+                  <b>
+                    {ai?.impact_score ??
+                      "—"}
+                  </b>
+                </div>
               </div>
             )}
-          </div>
+
+            {/* AI RESPONSE */}
+            <div className="organizer-ai-response-box">
+              <div className="organizer-ai-response-title">
+                <span>
+                  AI RESPONSE
+                </span>
+
+                <span className="organizer-ai-live-dot">
+                  ANALYSIS
+                </span>
+              </div>
+
+              <p>
+                {aiFeedback}
+              </p>
+            </div>
+
+            {/* INSIGHTS */}
+            {(strengths.length > 0 ||
+              weaknesses.length > 0 ||
+              suggestions.length > 0) && (
+              <div className="organizer-ai-insight-grid">
+                {strengths.length >
+                  0 && (
+                  <div className="organizer-ai-insight strengths">
+                    <span>
+                      STRENGTHS
+                    </span>
+
+                    <ul>
+                      {strengths.map(
+                        (
+                          item,
+                          index
+                        ) => (
+                          <li
+                            key={`strength-${index}`}
+                          >
+                            {item}
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                )}
+
+                {weaknesses.length >
+                  0 && (
+                  <div className="organizer-ai-insight weaknesses">
+                    <span>
+                      WEAKNESSES
+                    </span>
+
+                    <ul>
+                      {weaknesses.map(
+                        (
+                          item,
+                          index
+                        ) => (
+                          <li
+                            key={`weakness-${index}`}
+                          >
+                            {item}
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                )}
+
+                {suggestions.length >
+                  0 && (
+                  <div className="organizer-ai-insight suggestions">
+                    <span>
+                      SUGGESTIONS
+                    </span>
+
+                    <ul>
+                      {suggestions.map(
+                        (
+                          item,
+                          index
+                        ) => (
+                          <li
+                            key={`suggestion-${index}`}
+                          >
+                            {item}
+                          </li>
+                        )
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
         )}
 
+        {/* EXISTING ORGANIZER FEEDBACK */}
         {submission?.organizer_feedback && (
           <div className="organizer-existing-feedback">
-            <span>EXISTING ORGANIZER FEEDBACK</span>
-            <p>{submission.organizer_feedback}</p>
+            <span>
+              EXISTING ORGANIZER FEEDBACK
+            </span>
+
+            <p>
+              {submission.organizer_feedback}
+            </p>
           </div>
         )}
 
+        {/* R3 */}
+        {isRound3 && (
+          <div className="organizer-manual-review-panel">
+            <span>
+              ROUND 3 MANUAL REVIEW
+            </span>
+
+            <p>
+              Round 3 uses the organizer's
+              recorded score, decision, and
+              feedback. No AI score is shown
+              for this round.
+            </p>
+          </div>
+        )}
+
+        {/* REVIEW FORM */}
         <div className="organizer-review-form">
           <div className="organizer-review-form-grid">
             {isRound3 && (
-              <Field label="Score (0–100)" required>
+              <Field
+                label="Score (0–100)"
+                required
+              >
                 <input
                   className="org-input"
                   type="number"
@@ -1978,42 +2337,107 @@ function OrganizerSubmissionModal({
                   max="100"
                   step="1"
                   value={reviewScore}
-                  onChange={(event) => setReviewScore(event.target.value)}
+                  onChange={(event) =>
+                    setReviewScore(
+                      event.target.value
+                    )
+                  }
                   placeholder="Enter score"
                   disabled={!!reviewBusy}
                 />
               </Field>
             )}
-            <Field label={feedbackLabel} required full>
+
+            <Field
+              label="Organizer feedback"
+              required
+              full
+            >
               <textarea
                 className="org-input textarea"
                 rows={5}
                 value={reviewFeedback}
-                onChange={(event) => setReviewFeedback(event.target.value)}
-                placeholder={isRound3 ? "Explain the manual final review..." : "Explain why this submission is selected or rejected..."}
+                onChange={(event) =>
+                  setReviewFeedback(
+                    event.target.value
+                  )
+                }
+                placeholder={
+                  isRound3
+                    ? "Explain the manual final review..."
+                    : "Explain why this submission is selected or rejected..."
+                }
                 disabled={!!reviewBusy}
               />
             </Field>
           </div>
 
-          {error && <div className="form-error">{error}</div>}
+          {error && (
+            <div className="form-error">
+              {error}
+            </div>
+          )}
 
           <div className="organizer-review-actions">
-            <button className="outline-btn" disabled={!!reviewBusy} onClick={onClose}>Cancel</button>
+            <button
+              className="outline-btn"
+              disabled={!!reviewBusy}
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+
             <button
               className="danger-btn"
               disabled={!!reviewBusy}
-              onClick={() => isRound3 ? onRound3Decision("REJECTED") : onDecision(round, "REJECTED")}
+              onClick={() =>
+                isRound3
+                  ? onRound3Decision(
+                      "REJECTED"
+                    )
+                  : onDecision(
+                      round,
+                      "REJECTED"
+                    )
+              }
             >
-              {reviewBusy === "REJECTED" ? <LoaderCircle size={14} className="spin" /> : <X size={14} />}
+              {reviewBusy ===
+              "REJECTED" ? (
+                <LoaderCircle
+                  size={14}
+                  className="spin"
+                />
+              ) : (
+                <X size={14} />
+              )}
+
               Reject
             </button>
+
             <button
               className="approve-btn"
               disabled={!!reviewBusy}
-              onClick={() => isRound3 ? onRound3Decision("SELECTED") : onDecision(round, "SELECTED")}
+              onClick={() =>
+                isRound3
+                  ? onRound3Decision(
+                      "SELECTED"
+                    )
+                  : onDecision(
+                      round,
+                      "SELECTED"
+                    )
+              }
             >
-              {reviewBusy === "SELECTED" ? <LoaderCircle size={14} className="spin" /> : <Check size={14} />}
+              {reviewBusy ===
+              "SELECTED" ? (
+                <LoaderCircle
+                  size={14}
+                  className="spin"
+                />
+              ) : (
+                <Check size={14} />
+              )}
+
               Accept / Select
             </button>
           </div>
@@ -2022,7 +2446,6 @@ function OrganizerSubmissionModal({
     </div>
   );
 }
-
 function RoundTwo({ title, description, hackathon, hackathons, selectedId, setSelectedId, reviewMode }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(false);
