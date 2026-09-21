@@ -3029,13 +3029,95 @@ function SystemBlueprintPage() {
         <section className="admin-panel-card">
           <div className="admin-card-head"><div><span className="admin-kicker">SYSTEM CONTROL</span><h3>Platform controls</h3></div><Settings size={18} /></div>
           <p className="approval-description">Existing system controls remain available without changing the backend architecture.</p>
-          <div className="admin-list-row"><div className="admin-row-main"><strong>{maintenanceEnabled ? "MAINTENANCE ENABLED" : "SYSTEM LIVE"}</strong><span>{maintenanceEnabled ? "Platform is in maintenance mode." : "Normal operation is active."}</span></div><button className="event-action neutral" disabled={busy} onClick={toggleMaintenance}>{maintenanceEnabled ? "Disable" : "Enable"}</button></div>
-          <button className="event-action danger" style={{ marginTop: 12, width: "100%" }} disabled={busy} onClick={clearTelemetry}><Trash2 size={14} /> Clear telemetry</button>
+          <div className="admin-list-row"><div className="admin-row-main"><strong>SYSTEM LIVE</strong><span>Monitoring health and request telemetry are read directly from the live backend.</span></div><span className="admin-live-indicator">ONLINE</span></div>
+          <div className="admin-list-row"><div className="admin-row-main"><strong>TELEMETRY</strong><span>Use System Activity and the Monitoring modules above to inspect recorded requests and errors.</span></div><span className="admin-control-note">READ ONLY</span></div>
         </section>
       </div>
 
       {selectedNode && <BlueprintNodeModal node={selectedNode} details={nodeDetails} onClose={() => { setSelectedNode(null); setNodeDetails(null); }} onEnter={enterBlueprint} />}
     </div>
+  );
+}
+
+function ProfilePage({ user }) {
+  const displayName = user?.name || user?.full_name || "CampusCode Admin";
+  const email = user?.email || "—";
+  const role = user?.role || "ADMIN";
+  const userId = user?.id || user?.user_id || "—";
+  const initials = String(displayName)
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join("") || "A";
+
+  return (
+    <section className="admin-profile-page">
+      <PageTitle
+        eyebrow="ACCOUNT / PROFILE"
+        title={<>Admin <span>profile.</span></>}
+        description="Review the account currently signed in to the CampusCode Admin workspace."
+      />
+
+      <div className="profile-layout">
+        <section className="profile-identity">
+          <div className="profile-big-avatar">{initials}</div>
+          <h3>{displayName}</h3>
+          <p>{email}</p>
+
+          <div className="profile-id">
+            ACCOUNT ROLE
+            <strong>{String(role).toUpperCase()}</strong>
+          </div>
+
+          <div className="profile-id">
+            ACCOUNT ID
+            <strong>{String(userId)}</strong>
+          </div>
+        </section>
+
+        <section className="profile-form">
+          <div className="admin-card-head">
+            <div>
+              <span className="admin-kicker">ACCOUNT INFORMATION</span>
+              <h3>Administrator details</h3>
+            </div>
+            <UserCircle size={18} />
+          </div>
+
+          <div className="field-grid">
+            <label>
+              NAME
+              <input value={displayName} readOnly />
+            </label>
+
+            <label>
+              EMAIL
+              <input value={email} readOnly />
+            </label>
+
+            <label>
+              ROLE
+              <input value={String(role).toUpperCase()} readOnly />
+            </label>
+
+            <label>
+              ACCOUNT ID
+              <input value={String(userId)} readOnly />
+            </label>
+          </div>
+
+          <label>
+            ACCESS
+            <textarea
+              value="Administrator access is controlled by the authenticated CampusCode role."
+              readOnly
+              rows={4}
+            />
+          </label>
+        </section>
+      </div>
+    </section>
   );
 }
 

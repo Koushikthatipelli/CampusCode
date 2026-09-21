@@ -1155,3 +1155,159 @@ body,
   .organizer-page .org-sidebar { box-shadow:20px 0 50px rgba(50,35,90,.12); }
   .organizer-page .org-topbar { background:rgba(255,255,255,.9); }
 }
+
+
+/* ============================================================
+   ORGANIZER — FINAL LIGHT SURFACE OVERRIDES
+   Removes remaining dark/black boxes from inner pages.
+   ============================================================ */
+.organizer-page .org-panel,
+.organizer-page .org-form,
+.organizer-page .submission-card,
+.organizer-page .leader-row,
+.organizer-page .hack-card,
+.organizer-page .profile-card,
+.organizer-page .approval-card,
+.organizer-page .notification-card,
+.organizer-page .quick-card,
+.organizer-page .event-facts div,
+.organizer-page .hack-stats div,
+.organizer-page .team-card,
+.organizer-page .project-card,
+.organizer-page .round-card,
+.organizer-page .table-wrap,
+.organizer-page .dashboard-intro,
+.organizer-page .metric-card {
+  background:#fff !important;
+  color:var(--org-text) !important;
+  border-color:var(--org-border) !important;
+}
+
+.organizer-page .org-panel{box-shadow:0 14px 42px rgba(60,45,100,.055) !important;}
+.organizer-page .panel-head{border-bottom-color:var(--org-border) !important;}
+.organizer-page .panel-head h2,
+.organizer-page .panel-head h3,
+.organizer-page .hack-title-row h3,
+.organizer-page .submission-title h3,
+.organizer-page .rank-team b,
+.organizer-page .approval-card b,
+.organizer-page .notification-card b,
+.organizer-page .team-card h3,
+.organizer-page .project-card h3,
+.organizer-page .profile-card h3,
+.organizer-page .round-card h3,
+.organizer-page .round-card strong,
+.organizer-page .workspace-head h2,
+.organizer-page .current-event h3 {
+  color:var(--org-text) !important;
+}
+
+.organizer-page .panel-head p,
+.organizer-page .hack-meta,
+.organizer-page .hack-description,
+.organizer-page .submission-title p,
+.organizer-page .submission-main > p,
+.organizer-page .submission-meta,
+.organizer-page .rank-team span,
+.organizer-page .approval-card span,
+.organizer-page .notification-card p,
+.organizer-page .notification-card span,
+.organizer-page .team-card p,
+.organizer-page .team-card small,
+.organizer-page .project-card p,
+.organizer-page .project-top span,
+.organizer-page .project-card > div:last-child span,
+.organizer-page .round-card-top > div > span,
+.organizer-page .round-card p,
+.organizer-page .round-save-row,
+.organizer-page .profile-footer,
+.organizer-page .workspace-head p {
+  color:#77738b !important;
+}
+
+.organizer-page .hack-card:hover,
+.organizer-page .submission-card:hover,
+.organizer-page .leader-row:hover,
+.organizer-page .team-card:hover,
+.organizer-page .project-card:hover {
+  border-color:#d4c7ef !important;
+  box-shadow:0 14px 38px rgba(60,45,100,.07) !important;
+}
+
+.organizer-page .hack-card.selected{background:#faf8ff !important;border-color:#d9caf4 !important;}
+.organizer-page .hack-tags span{background:#faf9fd !important;border-color:var(--org-border) !important;color:#77738b !important;}
+.organizer-page .hack-stats div{background:#faf9fd !important;border-color:var(--org-border) !important;}
+.organizer-page .hack-stats b,.organizer-page .event-facts b{color:var(--org-text) !important;}
+.organizer-page .hack-stats span,.organizer-page .event-facts span{color:#8a8597 !important;}
+
+.organizer-page .submission-index{background:#f2eff9 !important;color:#77738b !important;}
+.organizer-page .submission-title > span{background:#faf9fd !important;border-color:var(--org-border) !important;color:#77738b !important;}
+.organizer-page .rank{color:#aaa4b7 !important;}
+.organizer-page .leader-row > strong{color:#6d28d9 !important;}
+
+.organizer-page .approval-card div{background:#faf9fd !important;border-color:var(--org-border) !important;}
+.organizer-page .notification-icon{background:#eee9ff !important;color:#6d28d9 !important;}
+
+.organizer-page .org-form{padding:0 !important;}
+.organizer-page .org-field > span{color:#77738b !important;}
+.organizer-page .org-field em{color:#7c3aed !important;}
+.organizer-page .org-input,
+.organizer-page .org-select,
+.organizer-page .round-card input,
+.organizer-page .org-input.textarea {
+  background:#fff !important;
+  color:var(--org-text) !important;
+  border-color:#d9d3e5 !important;
+}
+.organizer-page .org-input::placeholder{color:#aaa5b4 !important;}
+.organizer-page .org-input option,
+.organizer-page .org-select option{background:#fff !important;color:#17152b !important;}
+
+.organizer-page .form-footer{border-top-color:var(--org-border) !important;}
+.organizer-page .form-footer span{color:#77738b !important;}
+.organizer-page .form-footer b{color:#6d28d9 !important;}
+
+.organizer-page .round-banner{background:#f7f3ff !important;border-color:#e1d6f6 !important;}
+.organizer-page .round-banner h3{color:var(--org-text) !important;}
+.organizer-page .round-banner p{color:#77738b !important;}
+.organizer-page .round-card{background:#fff !important;border-color:var(--org-border) !important;}
+.organizer-page .round-card input{color:var(--org-text) !important;}
+.organizer-page .round-save-row{border-top-color:var(--org-border) !important;}
+
+.organizer-page .table-wrap{overflow:auto;background:#fff !important;}
+.organizer-page .table-wrap th{background:#faf9fd !important;color:#898398 !important;border-color:var(--org-border) !important;}
+.organizer-page .table-wrap td{background:#fff !important;color:#706b80 !important;border-color:var(--org-border) !important;}
+.organizer-page .table-wrap td b{color:var(--org-text) !important;}
+
+.organizer-page .quick-card{color:#5f5a70 !important;}
+.organizer-page .quick-card:hover{background:#faf8ff !important;color:#312b48 !important;}
+.organizer-page .quick-card svg:first-child{color:#7c3aed !important;}
+
+.organizer-page .status-pill{background:#faf9fc !important;border-color:#ddd8e8 !important;color:#625d70 !important;}
+.organizer-page .status-pill.LIVE,
+.organizer-page .status-pill.OPEN{background:#f3eeff !important;color:#6d28d9 !important;border-color:#d8c8f3 !important;}
+
+.organizer-page .profile-card{background:#fff !important;}
+.organizer-page .profile-avatar{background:linear-gradient(135deg,#f0ebff,#eef0ff) !important;border-color:#ddd2fa !important;color:#6d28d9 !important;box-shadow:0 14px 30px rgba(99,102,241,.08) !important;}
+.organizer-page .profile-footer{border-top-color:var(--org-border) !important;}
+
+.organizer-page .workspace-head{border-bottom-color:var(--org-border) !important;}
+.organizer-page .workspace-head > div:first-child span{color:#7c3aed !important;}
+
+/* Create-hackathon and inner workspace panels specifically */
+.organizer-page .org-panel .panel-body,
+.organizer-page .org-panel .panel-body * { --inner-border:#e9e4f6; }
+.organizer-page .org-panel .panel-body{color:var(--org-text) !important;}
+
+/* Any remaining common dark surface generated by the organizer JSX */
+.organizer-page .org-stack > section,
+.organizer-page .org-stack > div > section,
+.organizer-page .notification-grid > section,
+.organizer-page .dashboard-grid > section {
+  color:var(--org-text);
+}
+
+.organizer-page ::-webkit-scrollbar{width:8px;height:8px;}
+.organizer-page ::-webkit-scrollbar-track{background:#f0eef6;}
+.organizer-page ::-webkit-scrollbar-thumb{background:#c7bddc;border-radius:999px;}
+.organizer-page ::-webkit-scrollbar-thumb:hover{background:#aa98cf;}

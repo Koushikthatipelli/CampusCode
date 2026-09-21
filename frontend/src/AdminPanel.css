@@ -2736,3 +2736,27 @@
   .admin-activity-row { grid-template-columns:34px minmax(0,1fr); }
   .admin-activity-row time { grid-column:2; }
 }
+
+
+/* =========================================================
+   ADMIN PROFILE + BLUEPRINT RUNTIME FIXES
+========================================================= */
+.admin-profile-page{min-width:0;}
+.admin-profile-page .profile-form input,
+.admin-profile-page .profile-form textarea{background:rgba(255,255,255,.03);}
+.admin-live-indicator,
+.admin-control-note{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 auto;
+  padding:6px 9px;
+  border:1px solid var(--admin-border-strong);
+  border-radius:999px;
+  color:var(--admin-cyan);
+  background:rgba(69,225,255,.055);
+  font-size:7px;
+  font-weight:900;
+  letter-spacing:.12em;
+}
+.admin-control-note{color:#8ea2bf;border-color:var(--admin-border);background:rgba(255,255,255,.025);}
