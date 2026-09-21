@@ -1311,3 +1311,532 @@ body,
 .organizer-page ::-webkit-scrollbar-track{background:#f0eef6;}
 .organizer-page ::-webkit-scrollbar-thumb{background:#c7bddc;border-radius:999px;}
 .organizer-page ::-webkit-scrollbar-thumb:hover{background:#aa98cf;}
+
+/* ============================================================
+   ORGANIZER UI FIX PACK — SUBMISSIONS / TEAMS / RULEBOT
+   Final light-theme overrides. Keep backend/API behavior unchanged.
+   ============================================================ */
+
+/* ---------- Submission cards: readable student content ---------- */
+.organizer-page .submission-card.organizer-clickable-submission,
+.organizer-page .submission-card.organizer-round-submission-card {
+  background: #ffffff !important;
+  color: #17152b !important;
+  border: 1px solid #e3deee !important;
+  box-shadow: 0 8px 24px rgba(49,39,78,.045) !important;
+  cursor: pointer !important;
+}
+
+.organizer-page .submission-card.organizer-clickable-submission:hover,
+.organizer-page .submission-card.organizer-round-submission-card:hover,
+.organizer-page .submission-card.organizer-clickable-submission:focus-visible {
+  background: #fbf9ff !important;
+  border-color: #cfc1eb !important;
+  box-shadow: 0 16px 38px rgba(67,49,115,.09) !important;
+  outline: none !important;
+  transform: translateY(-2px) !important;
+}
+
+.organizer-page .submission-index {
+  background: #f0ebfa !important;
+  color: #6d28d9 !important;
+  border: 1px solid #e1d7f3 !important;
+}
+
+.organizer-page .submission-title h3,
+.organizer-page .submission-main h3 {
+  color: #17152b !important;
+}
+
+.organizer-page .submission-title p,
+.organizer-page .submission-main > p,
+.organizer-page .submission-meta,
+.organizer-page .submission-open-hint {
+  color: #666176 !important;
+}
+
+.organizer-page .submission-meta b {
+  color: #6d28d9 !important;
+}
+
+.organizer-page .submission-title > span {
+  background: #f7f4fc !important;
+  color: #5f5872 !important;
+  border-color: #ddd6e9 !important;
+}
+
+.organizer-page .organizer-submission-problem {
+  background: #f8f6fc !important;
+  border: 1px solid #e5dfef !important;
+  border-radius: 12px !important;
+}
+
+.organizer-page .organizer-submission-problem label {
+  color: #7c3aed !important;
+}
+
+.organizer-page .organizer-submission-problem p {
+  color: #343047 !important;
+  font-size: 12px !important;
+  line-height: 1.75 !important;
+  white-space: pre-wrap !important;
+}
+
+/* ---------- Round selector: never white-on-white ---------- */
+.organizer-page .organizer-submission-toolbar {
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.organizer-page .round-tab {
+  min-height: 38px !important;
+  padding: 0 15px !important;
+  border: 1px solid #dcd5e8 !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  color: #514b63 !important;
+  box-shadow: 0 3px 10px rgba(60,45,100,.035) !important;
+}
+
+.organizer-page .round-tab:hover {
+  background: #f7f3ff !important;
+  color: #5b21b6 !important;
+  border-color: #cbb9eb !important;
+}
+
+.organizer-page .round-tab.active {
+  background: linear-gradient(135deg,#7c3aed,#6366f1) !important;
+  color: #ffffff !important;
+  border-color: #7c3aed !important;
+  box-shadow: 0 8px 22px rgba(124,58,237,.18) !important;
+}
+
+/* ---------- Submission modal: dark, high-contrast, readable ---------- */
+.organizer-page .organizer-review-modal-backdrop {
+  background: rgba(12,10,20,.72) !important;
+  backdrop-filter: blur(12px) !important;
+}
+
+.organizer-page .organizer-review-modal {
+  background: #11121a !important;
+  color: #f8f7fb !important;
+  border: 1px solid rgba(167,139,250,.25) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 35px 110px rgba(0,0,0,.42) !important;
+}
+
+.organizer-page .organizer-review-modal,
+.organizer-page .organizer-review-modal * {
+  box-sizing: border-box;
+}
+
+.organizer-page .organizer-review-modal-head {
+  border-bottom-color: rgba(255,255,255,.09) !important;
+}
+
+.organizer-page .organizer-review-modal-head > div > span {
+  color: #a78bfa !important;
+}
+
+.organizer-page .organizer-review-modal-head h2 {
+  color: #ffffff !important;
+}
+
+.organizer-page .organizer-review-modal-head p {
+  color: rgba(255,255,255,.58) !important;
+}
+
+.organizer-page .organizer-review-close {
+  background: rgba(255,255,255,.06) !important;
+  color: #ffffff !important;
+  border-color: rgba(255,255,255,.13) !important;
+}
+
+.organizer-page .organizer-review-close:hover {
+  background: rgba(124,58,237,.2) !important;
+  color: #ffffff !important;
+  border-color: rgba(167,139,250,.45) !important;
+}
+
+.organizer-page .organizer-review-status-row {
+  color: rgba(255,255,255,.58) !important;
+}
+
+.organizer-page .organizer-review-status-row b {
+  color: #ffffff !important;
+}
+
+.organizer-page .organizer-review-detail-card {
+  background: #191a24 !important;
+  border-color: rgba(255,255,255,.09) !important;
+}
+
+.organizer-page .organizer-review-detail-card > span,
+.organizer-page .organizer-existing-feedback > span {
+  color: #aaa4ba !important;
+}
+
+.organizer-page .organizer-review-detail-card p {
+  color: #e9e6ef !important;
+  font-size: 12px !important;
+  line-height: 1.75 !important;
+  white-space: pre-wrap !important;
+}
+
+.organizer-page .organizer-review-detail-card a {
+  color: #a7f37a !important;
+}
+
+.organizer-page .organizer-missing-value {
+  color: #858092 !important;
+}
+
+.organizer-page .organizer-existing-feedback {
+  background: rgba(167,243,122,.055) !important;
+  border-left-color: #a7f37a !important;
+}
+
+.organizer-page .organizer-existing-feedback p {
+  color: #ddd9e6 !important;
+}
+
+.organizer-page .organizer-review-form {
+  border-top-color: rgba(255,255,255,.09) !important;
+}
+
+.organizer-page .organizer-review-form .org-field > span {
+  color: #aaa4ba !important;
+}
+
+.organizer-page .organizer-review-form .org-input,
+.organizer-page .organizer-review-form .org-input.textarea {
+  background: #191a24 !important;
+  color: #ffffff !important;
+  border-color: rgba(255,255,255,.12) !important;
+}
+
+.organizer-page .organizer-review-form .org-input::placeholder {
+  color: #777183 !important;
+}
+
+.organizer-page .organizer-review-form .org-input:focus {
+  border-color: #a78bfa !important;
+  box-shadow: 0 0 0 3px rgba(167,139,250,.12) !important;
+}
+
+/* ---------- Team cards: make click affordance obvious ---------- */
+.organizer-page .organizer-team-card {
+  width: 100% !important;
+  text-align: left !important;
+  color: #17152b !important;
+  cursor: pointer !important;
+  appearance: none !important;
+}
+
+.organizer-page .organizer-team-card:hover,
+.organizer-page .organizer-team-card:focus-visible {
+  background: #fbf9ff !important;
+  border-color: #cdbdea !important;
+  box-shadow: 0 14px 35px rgba(67,49,115,.09) !important;
+  outline: none !important;
+  transform: translateY(-2px) !important;
+}
+
+.organizer-page .organizer-team-card .team-card-arrow {
+  margin-left: auto !important;
+  color: #7c3aed !important;
+  transition: transform .2s ease !important;
+}
+
+.organizer-page .organizer-team-card:hover .team-card-arrow {
+  transform: translateX(4px) !important;
+}
+
+/* ---------- Team details modal ---------- */
+.organizer-page .organizer-team-modal-backdrop {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1100 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 22px !important;
+  background: rgba(12,10,20,.70) !important;
+  backdrop-filter: blur(12px) !important;
+  overflow-y: auto !important;
+}
+
+.organizer-page .organizer-team-modal {
+  width: min(760px,100%) !important;
+  max-height: calc(100vh - 44px) !important;
+  overflow-y: auto !important;
+  padding: 24px !important;
+  border-radius: 20px !important;
+  background: #ffffff !important;
+  color: #17152b !important;
+  border: 1px solid #ddd5ec !important;
+  box-shadow: 0 35px 110px rgba(0,0,0,.35) !important;
+}
+
+.organizer-page .organizer-team-modal-head {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  padding-bottom: 18px !important;
+  border-bottom: 1px solid #ebe7f2 !important;
+}
+
+.organizer-page .organizer-team-modal-head > div > span {
+  color: #7c3aed !important;
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  letter-spacing: .16em !important;
+}
+
+.organizer-page .organizer-team-modal-head h2 {
+  margin: 7px 0 4px !important;
+  color: #17152b !important;
+  font-size: 26px !important;
+}
+
+.organizer-page .organizer-team-modal-head p {
+  margin: 0 !important;
+  color: #77738b !important;
+  font-size: 11px !important;
+}
+
+.organizer-page .organizer-modal-close {
+  width: 38px !important;
+  height: 38px !important;
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 38px !important;
+  border: 1px solid #ddd6e8 !important;
+  border-radius: 10px !important;
+  background: #faf9fd !important;
+  color: #514b63 !important;
+  cursor: pointer !important;
+}
+
+.organizer-page .organizer-modal-close:hover {
+  background: #f1ebff !important;
+  color: #6d28d9 !important;
+  border-color: #cfc0ea !important;
+}
+
+.organizer-page .organizer-team-modal-body {
+  padding-top: 18px !important;
+}
+
+.organizer-page .team-detail-stats {
+  display: grid !important;
+  grid-template-columns: repeat(3,minmax(0,1fr)) !important;
+  gap: 10px !important;
+}
+
+.organizer-page .team-detail-stats > div {
+  padding: 14px !important;
+  border: 1px solid #e7e2ef !important;
+  border-radius: 13px !important;
+  background: #faf9fd !important;
+}
+
+.organizer-page .team-detail-stats span,
+.organizer-page .team-leader-card > span,
+.organizer-page .team-section-heading > span {
+  display: block !important;
+  color: #858093 !important;
+  font-size: 8.5px !important;
+  font-weight: 900 !important;
+  letter-spacing: .12em !important;
+}
+
+.organizer-page .team-detail-stats b {
+  display: block !important;
+  margin-top: 5px !important;
+  color: #17152b !important;
+  font-size: 14px !important;
+}
+
+.organizer-page .team-leader-card {
+  display: grid !important;
+  grid-template-columns: auto 1fr !important;
+  align-items: center !important;
+  column-gap: 12px !important;
+  margin-top: 12px !important;
+  padding: 16px !important;
+  border: 1px solid #e7e2ef !important;
+  border-radius: 14px !important;
+  background: #fbf9ff !important;
+}
+
+.organizer-page .team-leader-card > span {
+  grid-column: 1 / -1 !important;
+  margin-bottom: 8px !important;
+}
+
+.organizer-page .team-member-avatar {
+  width: 38px !important;
+  height: 38px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 11px !important;
+  background: #f0ebff !important;
+  color: #6d28d9 !important;
+  border: 1px solid #ddd1f5 !important;
+  font-weight: 900 !important;
+}
+
+.organizer-page .team-leader-card b,
+.organizer-page .team-member-row b {
+  color: #17152b !important;
+  font-size: 12px !important;
+}
+
+.organizer-page .team-leader-card p,
+.organizer-page .team-member-row p {
+  margin: 3px 0 0 !important;
+  color: #77738b !important;
+  font-size: 10px !important;
+}
+
+.organizer-page .team-members-section {
+  margin-top: 16px !important;
+}
+
+.organizer-page .team-section-heading {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  margin-bottom: 8px !important;
+}
+
+.organizer-page .team-section-heading b {
+  min-width: 26px !important;
+  height: 24px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 999px !important;
+  background: #f0ebff !important;
+  color: #6d28d9 !important;
+  font-size: 10px !important;
+}
+
+.organizer-page .team-member-list {
+  display: grid !important;
+  gap: 7px !important;
+}
+
+.organizer-page .team-member-row {
+  display: grid !important;
+  grid-template-columns: auto 1fr auto !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 11px !important;
+  border: 1px solid #ebe7f2 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+}
+
+.organizer-page .team-member-row > span {
+  padding: 5px 8px !important;
+  border-radius: 999px !important;
+  background: #f5f1ff !important;
+  color: #6d28d9 !important;
+  font-size: 8px !important;
+  font-weight: 900 !important;
+}
+
+/* ---------- RuleBot: proper response box ---------- */
+.organizer-page .rulebot-grid {
+  gap: 16px !important;
+}
+
+.organizer-page .rulebot-answer {
+  margin-top: 16px !important;
+  padding: 18px !important;
+  border: 1px solid #d9c9f4 !important;
+  border-radius: 16px !important;
+  background: linear-gradient(135deg,#faf7ff,#f6f1ff) !important;
+  box-shadow: 0 12px 32px rgba(99,70,150,.07) !important;
+  position: relative !important;
+  overflow: hidden !important;
+}
+
+.organizer-page .rulebot-answer::before {
+  content: "" !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  bottom: 0 !important;
+  width: 3px !important;
+  background: linear-gradient(#7c3aed,#a78bfa) !important;
+}
+
+.organizer-page .rulebot-answer > span {
+  display: flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+  color: #6d28d9 !important;
+  font-size: 9px !important;
+  font-weight: 900 !important;
+  letter-spacing: .15em !important;
+}
+
+.organizer-page .rulebot-answer > p {
+  margin: 10px 0 0 !important;
+  color: #29243b !important;
+  font-size: 12.5px !important;
+  line-height: 1.8 !important;
+  white-space: pre-wrap !important;
+}
+
+.organizer-page .rulebot-chat-form {
+  display: grid !important;
+  gap: 10px !important;
+}
+
+.organizer-page .rulebot-question {
+  min-height: 130px !important;
+  line-height: 1.65 !important;
+}
+
+.organizer-page .rulebot-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  margin-top: 12px !important;
+}
+
+.organizer-page .rulebot-upload-label {
+  cursor: pointer !important;
+}
+
+.organizer-page .rulebot-upload-label input {
+  display: none !important;
+}
+
+@media (max-width: 700px) {
+  .organizer-page .team-detail-stats {
+    grid-template-columns: 1fr !important;
+  }
+
+  .organizer-page .organizer-team-modal-backdrop {
+    padding: 10px !important;
+  }
+
+  .organizer-page .organizer-team-modal {
+    max-height: calc(100vh - 20px) !important;
+    padding: 18px !important;
+  }
+
+  .organizer-page .team-member-row {
+    grid-template-columns: auto 1fr !important;
+  }
+
+  .organizer-page .team-member-row > span {
+    grid-column: 2 !important;
+    width: max-content !important;
+  }
+}

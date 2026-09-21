@@ -234,11 +234,44 @@ export const reviewRound3Submission =
       const userId = req.user.id;
       const userRole = req.user.role;
 
+      // ======================================================
+      // IMPORTANT:
+      // Frontend currently sends:
+      //
+      // {
+      //   decision,
+      //   score,
+      //   organizer_feedback
+      // }
+      //
+      // Older clients may send:
+      //
+      // {
+      //   decision,
+      //   score,
+      //   feedback
+      // }
+      //
+      // Accept both names.
+      // ======================================================
+
       const {
         decision,
         score,
         feedback,
+        organizer_feedback,
       } = req.body;
+
+      // ------------------------------------------------------
+      // Normalize organizer feedback
+      // ------------------------------------------------------
+
+      const organizerFeedback =
+        typeof organizer_feedback === "string"
+          ? organizer_feedback.trim()
+          : typeof feedback === "string"
+            ? feedback.trim()
+            : "";
 
       // ------------------------------------------------------
       // Validate decision
@@ -298,11 +331,6 @@ export const reviewRound3Submission =
       // ------------------------------------------------------
       // Validate feedback
       // ------------------------------------------------------
-
-      const organizerFeedback =
-        typeof feedback === "string"
-          ? feedback.trim()
-          : "";
 
       if (!organizerFeedback) {
         return res.status(400).json({
