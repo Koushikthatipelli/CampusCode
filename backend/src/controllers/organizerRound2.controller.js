@@ -1,34 +1,330 @@
 import pool from "../config/db.js";
 
 // ============================================================
+// GEMINI CONFIGURATION
+// ============================================================
+
+const GEMINI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models";
+
+const DEFAULT_MODEL =
+  process.env.GEMINI_MODEL || "gemini-3.6-flash";
+
+// Same fallback order used by ai.service.js
+const GEMINI_MODELS = [
+  DEFAULT_MODEL,
+  "gemini-3.5-flash-lite",
+  "gemini-2.5-flash-lite",
+];
+
+const MAX_RETRIES_PER_MODEL = 2;
+
+const RETRY_DELAYS = [2000, 5000];
+
+// ============================================================
+// WAIT
+// ============================================================
+
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+// ============================================================
+// RETRYABLE GEMINI STATUS
+// ============================================================
+
+function isRetryableStatus(status) {
+  return (
+    status === 429 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  );
+}
+
+// ============================================================
+// CALL ONE GEMINI MODEL WITH RETRIES
+// ============================================================
+
+async function callGeminiModel(
+  prompt,
+  model,
+  apiKey
+) {
+  let lastError = null;
+
+  for (
+    let attempt = 0;
+    attempt <= MAX_RETRIES_PER_MODEL;
+    attempt++
+  ) {
+    try {
+      console.log(
+        `Gemini request: model=${model}, attempt=${
+          attempt + 1
+        }/${MAX_RETRIES_PER_MODEL + 1}`
+      );
+
+      const geminiResponse =
+        await fetch(
+          `${GEMINI_API_URL}/${model}:generateContent?key=${apiKey}`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              contents: [
+                {
+                  role: "user",
+                  parts: [
+                    {
+                      text: prompt,
+                    },
+                  ],
+                },
+              ],
+
+              generationConfig: {
+                temperature: 0.2,
+                responseMimeType:
+                  "application/json",
+              },
+            }),
+          }
+        );
+
+      // ========================================================
+      // GEMINI HTTP ERROR
+      // ========================================================
+
+      if (!geminiResponse.ok) {
+        const errorText =
+          await geminiResponse.text();
+
+        console.error(
+          `GEMINI API ERROR [${geminiResponse.status}] using ${model}:`,
+          errorText
+        );
+
+        if (
+          isRetryableStatus(
+            geminiResponse.status
+          ) &&
+          attempt < MAX_RETRIES_PER_MODEL
+        ) {
+          const delay =
+            RETRY_DELAYS[attempt];
+
+          console.log(
+            `Temporary Gemini error (${geminiResponse.status}). ` +
+              `Retrying ${model} in ${
+                delay / 1000
+              }s...`
+          );
+
+          await sleep(delay);
+
+          continue;
+        }
+
+        const error =
+          new Error(
+            `Gemini API error: ${geminiResponse.status}`
+          );
+
+        error.status =
+          geminiResponse.status;
+
+        error.model = model;
+
+        error.responseBody =
+          errorText;
+
+        throw error;
+      }
+
+      // ========================================================
+      // SUCCESSFUL GEMINI RESPONSE
+      // ========================================================
+
+      const geminiData =
+        await geminiResponse.json();
+
+      console.log(
+        `GEMINI RESPONSE RECEIVED FROM ${model}`
+      );
+
+      const rawText =
+        geminiData
+          ?.candidates?.[0]
+          ?.content?.parts?.[0]
+          ?.text;
+
+      if (!rawText) {
+        console.error(
+          `GEMINI EMPTY RESPONSE FROM ${model}:`,
+          JSON.stringify(
+            geminiData,
+            null,
+            2
+          )
+        );
+
+        throw new Error(
+          `Gemini returned no text output from ${model}`
+        );
+      }
+
+      return {
+        rawText,
+        model,
+      };
+    } catch (error) {
+      lastError = error;
+
+      const status =
+        error?.status;
+
+      const shouldRetry =
+        attempt <
+          MAX_RETRIES_PER_MODEL &&
+        (
+          !status ||
+          isRetryableStatus(status)
+        );
+
+      if (shouldRetry) {
+        const delay =
+          RETRY_DELAYS[attempt];
+
+        console.log(
+          `Gemini request error for ${model}. ` +
+            `Retrying in ${
+              delay / 1000
+            }s...`
+        );
+
+        await sleep(delay);
+
+        continue;
+      }
+
+      break;
+    }
+  }
+
+  throw (
+    lastError ||
+    new Error(
+      `Gemini model ${model} failed`
+    )
+  );
+}
+
+// ============================================================
+// CALL GEMINI WITH MODEL FALLBACK
+// ============================================================
+
+async function callGeminiWithFallback(
+  prompt,
+  apiKey
+) {
+  let lastError = null;
+
+  for (const model of GEMINI_MODELS) {
+    try {
+      console.log(
+        `Trying Gemini model: ${model}`
+      );
+
+      const result =
+        await callGeminiModel(
+          prompt,
+          model,
+          apiKey
+        );
+
+      console.log(
+        `Gemini analysis successful using ${model}`
+      );
+
+      return result;
+    } catch (error) {
+      lastError = error;
+
+      console.error(
+        `Gemini model ${model} failed:`,
+        error.message
+      );
+
+      // Do not switch models for
+      // authentication/configuration errors.
+      if (
+        error.status === 400 ||
+        error.status === 401 ||
+        error.status === 403
+      ) {
+        throw error;
+      }
+
+      console.log(
+        `Switching from ${model} to next Gemini fallback model...`
+      );
+    }
+  }
+
+  throw (
+    lastError ||
+    new Error(
+      "All Gemini models failed"
+    )
+  );
+}
+
+// ============================================================
 // HELPER — CHECK ORGANIZER / ADMIN ACCESS
 // ============================================================
 
-const checkOrganizerAccess = async (hackathonId, user) => {
-  const result = await pool.query(
-    `
-    SELECT
-      id,
-      title,
-      organizer_id,
-      publication_status,
-      current_round
-    FROM hackathons
-    WHERE id = $1
-    LIMIT 1
-    `,
-    [hackathonId]
-  );
+const checkOrganizerAccess = async (
+  hackathonId,
+  user
+) => {
+  const result =
+    await pool.query(
+      `
+      SELECT
+        id,
+        title,
+        organizer_id,
+        publication_status,
+        current_round
+      FROM hackathons
+      WHERE id = $1
+      LIMIT 1
+      `,
+      [hackathonId]
+    );
 
-  if (result.rows.length === 0) {
+  if (
+    result.rows.length === 0
+  ) {
     return {
       allowed: false,
       status: 404,
-      message: "Hackathon not found",
+      message:
+        "Hackathon not found",
     };
   }
 
-  const hackathon = result.rows[0];
+  const hackathon =
+    result.rows[0];
 
   if (user.role === "ADMIN") {
     return {
@@ -39,7 +335,8 @@ const checkOrganizerAccess = async (hackathonId, user) => {
 
   if (
     user.role !== "ORGANIZER" ||
-    hackathon.organizer_id !== user.id
+    hackathon.organizer_id !==
+      user.id
   ) {
     return {
       allowed: false,
@@ -55,416 +352,454 @@ const checkOrganizerAccess = async (hackathonId, user) => {
   };
 };
 
-
 // ============================================================
 // GET ROUND 2 SUBMISSIONS
 // GET /api/organizer/round2/hackathons/:hackathonId/submissions
 // ============================================================
 
-export const getRound2Submissions = async (req, res) => {
-  try {
-    const { hackathonId } = req.params;
+export const getRound2Submissions =
+  async (req, res) => {
+    try {
+      const {
+        hackathonId,
+      } = req.params;
 
-    // --------------------------------------------------------
-    // Check organizer/admin access
-    // --------------------------------------------------------
+      // --------------------------------------------------------
+      // Check organizer/admin access
+      // --------------------------------------------------------
 
-    const access = await checkOrganizerAccess(
-      hackathonId,
-      req.user
-    );
+      const access =
+        await checkOrganizerAccess(
+          hackathonId,
+          req.user
+        );
 
-    if (!access.allowed) {
-      return res.status(access.status).json({
+      if (!access.allowed) {
+        return res
+          .status(access.status)
+          .json({
+            success: false,
+            message:
+              access.message,
+          });
+      }
+
+      const hackathon =
+        access.hackathon;
+
+      // --------------------------------------------------------
+      // Get Round 2
+      // --------------------------------------------------------
+
+      const roundResult =
+        await pool.query(
+          `
+          SELECT
+            id,
+            round_number,
+            title,
+            status,
+            start_at,
+            end_at,
+            activated_at,
+            activated_by,
+            completed_at
+          FROM hackathon_rounds
+          WHERE hackathon_id = $1
+            AND round_number = 2
+          LIMIT 1
+          `,
+          [hackathonId]
+        );
+
+      if (
+        roundResult.rows.length ===
+        0
+      ) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Round 2 not found",
+        });
+      }
+
+      const round =
+        roundResult.rows[0];
+
+      // --------------------------------------------------------
+      // Get submissions + AI analysis + organizer decision
+      // --------------------------------------------------------
+
+      const submissionsResult =
+        await pool.query(
+          `
+          SELECT
+            rs.id,
+            rs.hackathon_id,
+            rs.team_id,
+            rs.submitted_by,
+
+            rs.github_url,
+            rs.pdf_url,
+            rs.pdf_file_name,
+            rs.pdf_file_path,
+            rs.extracted_text,
+
+            rs.status,
+            rs.submitted_at,
+            rs.created_at,
+            rs.updated_at,
+
+            t.name AS team_name,
+
+            u.name AS submitted_by_name,
+            u.email AS submitted_by_email,
+
+            ai.id AS ai_analysis_id,
+            ai.novelty_score,
+            ai.relevance_score,
+            ai.innovation_score,
+            ai.technical_score,
+            ai.impact_score,
+            ai.overall_score,
+            ai.recommendation,
+            ai.feedback AS ai_feedback,
+            ai.model_name,
+            ai.created_at AS ai_analyzed_at,
+
+            d.id AS decision_id,
+            d.decision,
+            d.organizer_feedback,
+            d.decided_by,
+            d.decided_at
+
+          FROM round2_submissions rs
+
+          LEFT JOIN teams t
+            ON t.id = rs.team_id
+
+          LEFT JOIN users u
+            ON u.id = rs.submitted_by
+
+          LEFT JOIN round2_ai_analysis ai
+            ON ai.round2_submission_id = rs.id
+
+          LEFT JOIN round2_decisions d
+            ON d.round2_submission_id = rs.id
+
+          WHERE rs.hackathon_id = $1
+
+          ORDER BY
+            rs.submitted_at DESC NULLS LAST,
+            rs.created_at DESC
+          `,
+          [hackathonId]
+        );
+
+      // --------------------------------------------------------
+      // Format submissions
+      // --------------------------------------------------------
+
+      const submissions =
+        submissionsResult.rows.map(
+          (row) => ({
+            id: row.id,
+
+            hackathon_id:
+              row.hackathon_id,
+
+            team: {
+              id: row.team_id,
+              name: row.team_name,
+            },
+
+            submitted_by: {
+              id: row.submitted_by,
+              name:
+                row.submitted_by_name,
+              email:
+                row.submitted_by_email,
+            },
+
+            github_url:
+              row.github_url,
+
+            pdf: {
+              url: row.pdf_url,
+              file_name:
+                row.pdf_file_name,
+              file_path:
+                row.pdf_file_path,
+            },
+
+            extracted_text:
+              row.extracted_text,
+
+            status: row.status,
+
+            submitted_at:
+              row.submitted_at,
+            created_at:
+              row.created_at,
+            updated_at:
+              row.updated_at,
+
+            ai_analysis:
+              row.ai_analysis_id
+                ? {
+                    id:
+                      row.ai_analysis_id,
+
+                    novelty_score:
+                      row.novelty_score,
+
+                    relevance_score:
+                      row.relevance_score,
+
+                    innovation_score:
+                      row.innovation_score,
+
+                    technical_score:
+                      row.technical_score,
+
+                    impact_score:
+                      row.impact_score,
+
+                    overall_score:
+                      row.overall_score,
+
+                    recommendation:
+                      row.recommendation,
+
+                    feedback:
+                      row.ai_feedback,
+
+                    model_name:
+                      row.model_name,
+
+                    analyzed_at:
+                      row.ai_analyzed_at,
+                  }
+                : null,
+
+            organizer_decision:
+              row.decision_id
+                ? {
+                    id:
+                      row.decision_id,
+
+                    decision:
+                      row.decision,
+
+                    feedback:
+                      row.organizer_feedback,
+
+                    decided_by:
+                      row.decided_by,
+
+                    decided_at:
+                      row.decided_at,
+                  }
+                : null,
+          })
+        );
+
+      return res.status(200).json({
+        success: true,
+
+        hackathon: {
+          id: hackathon.id,
+          title: hackathon.title,
+          publication_status:
+            hackathon.publication_status,
+          current_round:
+            hackathon.current_round,
+        },
+
+        round: {
+          id: round.id,
+          number:
+            round.round_number,
+          title: round.title,
+          status: round.status,
+          start_at:
+            round.start_at,
+          end_at: round.end_at,
+          activated_at:
+            round.activated_at,
+          completed_at:
+            round.completed_at,
+        },
+
+        count:
+          submissions.length,
+
+        submissions,
+      });
+    } catch (error) {
+      console.error(
+        "Get Round 2 submissions error:",
+        error
+      );
+
+      return res.status(500).json({
         success: false,
-        message: access.message,
+        message:
+          "Failed to get Round 2 submissions",
+        error: error.message,
       });
     }
-
-    const hackathon = access.hackathon;
-
-    // --------------------------------------------------------
-    // Get Round 2
-    // --------------------------------------------------------
-
-    const roundResult = await pool.query(
-      `
-      SELECT
-        id,
-        round_number,
-        title,
-        status,
-        start_at,
-        end_at,
-        activated_at,
-        activated_by,
-        completed_at
-      FROM hackathon_rounds
-      WHERE hackathon_id = $1
-        AND round_number = 2
-      LIMIT 1
-      `,
-      [hackathonId]
-    );
-
-    if (roundResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "Round 2 not found",
-      });
-    }
-
-    const round = roundResult.rows[0];
-
-    // --------------------------------------------------------
-    // Get submissions + AI analysis + organizer decision
-    // --------------------------------------------------------
-
-    const submissionsResult = await pool.query(
-      `
-      SELECT
-        rs.id,
-        rs.hackathon_id,
-        rs.team_id,
-        rs.submitted_by,
-
-        rs.github_url,
-        rs.pdf_url,
-        rs.pdf_file_name,
-        rs.pdf_file_path,
-        rs.extracted_text,
-
-        rs.status,
-        rs.submitted_at,
-        rs.created_at,
-        rs.updated_at,
-
-        t.name AS team_name,
-
-        u.name AS submitted_by_name,
-        u.email AS submitted_by_email,
-
-        ai.id AS ai_analysis_id,
-        ai.novelty_score,
-        ai.relevance_score,
-        ai.innovation_score,
-        ai.technical_score,
-        ai.impact_score,
-        ai.overall_score,
-        ai.recommendation,
-        ai.feedback AS ai_feedback,
-        ai.model_name,
-        ai.created_at AS ai_analyzed_at,
-
-        d.id AS decision_id,
-        d.decision,
-        d.organizer_feedback,
-        d.decided_by,
-        d.decided_at
-
-      FROM round2_submissions rs
-
-      LEFT JOIN teams t
-        ON t.id = rs.team_id
-
-      LEFT JOIN users u
-        ON u.id = rs.submitted_by
-
-      LEFT JOIN round2_ai_analysis ai
-        ON ai.round2_submission_id = rs.id
-
-      LEFT JOIN round2_decisions d
-        ON d.round2_submission_id = rs.id
-
-      WHERE rs.hackathon_id = $1
-
-      ORDER BY
-        rs.submitted_at DESC NULLS LAST,
-        rs.created_at DESC
-      `,
-      [hackathonId]
-    );
-
-    // --------------------------------------------------------
-    // Format submissions
-    // --------------------------------------------------------
-
-    const submissions = submissionsResult.rows.map((row) => ({
-      id: row.id,
-
-      hackathon_id: row.hackathon_id,
-
-      team: {
-        id: row.team_id,
-        name: row.team_name,
-      },
-
-      submitted_by: {
-        id: row.submitted_by,
-        name: row.submitted_by_name,
-        email: row.submitted_by_email,
-      },
-
-      github_url: row.github_url,
-
-      pdf: {
-        url: row.pdf_url,
-        file_name: row.pdf_file_name,
-        file_path: row.pdf_file_path,
-      },
-
-      extracted_text: row.extracted_text,
-
-      status: row.status,
-
-      submitted_at: row.submitted_at,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-
-      ai_analysis: row.ai_analysis_id
-        ? {
-            id: row.ai_analysis_id,
-
-            novelty_score:
-              row.novelty_score,
-
-            relevance_score:
-              row.relevance_score,
-
-            innovation_score:
-              row.innovation_score,
-
-            technical_score:
-              row.technical_score,
-
-            impact_score:
-              row.impact_score,
-
-            overall_score:
-              row.overall_score,
-
-            recommendation:
-              row.recommendation,
-
-            feedback:
-              row.ai_feedback,
-
-            model_name:
-              row.model_name,
-
-            analyzed_at:
-              row.ai_analyzed_at,
-          }
-        : null,
-
-      organizer_decision: row.decision_id
-        ? {
-            id: row.decision_id,
-
-            decision:
-              row.decision,
-
-            feedback:
-              row.organizer_feedback,
-
-            decided_by:
-              row.decided_by,
-
-            decided_at:
-              row.decided_at,
-          }
-        : null,
-    }));
-
-    return res.status(200).json({
-      success: true,
-
-      hackathon: {
-        id: hackathon.id,
-        title: hackathon.title,
-        publication_status:
-          hackathon.publication_status,
-        current_round:
-          hackathon.current_round,
-      },
-
-      round: {
-        id: round.id,
-        number: round.round_number,
-        title: round.title,
-        status: round.status,
-        start_at: round.start_at,
-        end_at: round.end_at,
-        activated_at: round.activated_at,
-        completed_at: round.completed_at,
-      },
-
-      count: submissions.length,
-
-      submissions,
-    });
-  } catch (error) {
-    console.error(
-      "Get Round 2 submissions error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to get Round 2 submissions",
-      error: error.message,
-    });
-  }
-};
-
+  };
 
 // ============================================================
 // ANALYZE ROUND 2 SUBMISSION WITH GEMINI
 // POST /api/organizer/round2/submissions/:submissionId/analyze
 // ============================================================
 
-export const analyzeRound2Submission = async (
-  req,
-  res
-) => {
-  try {
-    const { submissionId } = req.params;
+export const analyzeRound2Submission =
+  async (req, res) => {
+    try {
+      const {
+        submissionId,
+      } = req.params;
 
-    // --------------------------------------------------------
-    // Get submission + hackathon
-    // --------------------------------------------------------
+      // --------------------------------------------------------
+      // Get submission + hackathon
+      // --------------------------------------------------------
 
-    const submissionResult = await pool.query(
-      `
-      SELECT
-        rs.id,
-        rs.hackathon_id,
-        rs.team_id,
-        rs.submitted_by,
-        rs.github_url,
-        rs.pdf_url,
-        rs.pdf_file_name,
-        rs.extracted_text,
-        rs.status,
+      const submissionResult =
+        await pool.query(
+          `
+          SELECT
+            rs.id,
+            rs.hackathon_id,
+            rs.team_id,
+            rs.submitted_by,
+            rs.github_url,
+            rs.pdf_url,
+            rs.pdf_file_name,
+            rs.extracted_text,
+            rs.status,
 
-        h.title AS hackathon_title,
-        h.organizer_id,
-        h.publication_status,
-        h.current_round
+            h.title AS hackathon_title,
+            h.organizer_id,
+            h.publication_status,
+            h.current_round
 
-      FROM round2_submissions rs
+          FROM round2_submissions rs
 
-      INNER JOIN hackathons h
-        ON h.id = rs.hackathon_id
+          INNER JOIN hackathons h
+            ON h.id = rs.hackathon_id
 
-      WHERE rs.id = $1
-      LIMIT 1
-      `,
-      [submissionId]
-    );
+          WHERE rs.id = $1
+          LIMIT 1
+          `,
+          [submissionId]
+        );
 
-    if (submissionResult.rows.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Round 2 submission not found",
-      });
-    }
+      if (
+        submissionResult.rows.length ===
+        0
+      ) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Round 2 submission not found",
+        });
+      }
 
-    const submission =
-      submissionResult.rows[0];
+      const submission =
+        submissionResult.rows[0];
 
-    // --------------------------------------------------------
-    // Permission
-    // --------------------------------------------------------
+      // --------------------------------------------------------
+      // Permission
+      // --------------------------------------------------------
 
-    if (
-      req.user.role !== "ADMIN" &&
-      (
-        req.user.role !== "ORGANIZER" ||
-        submission.organizer_id !== req.user.id
-      )
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "You do not have permission to analyze this submission",
-      });
-    }
+      if (
+        req.user.role !== "ADMIN" &&
+        (
+          req.user.role !==
+            "ORGANIZER" ||
+          submission.organizer_id !==
+            req.user.id
+        )
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You do not have permission to analyze this submission",
+        });
+      }
 
-    // --------------------------------------------------------
-    // Check extracted PDF text
-    // --------------------------------------------------------
+      // --------------------------------------------------------
+      // Check extracted PDF text
+      // --------------------------------------------------------
 
-    if (
-      !submission.extracted_text ||
-      !submission.extracted_text.trim()
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "No extracted PDF text is available for AI analysis",
-      });
-    }
+      if (
+        !submission.extracted_text ||
+        !submission.extracted_text.trim()
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "No extracted PDF text is available for AI analysis",
+        });
+      }
 
-    // --------------------------------------------------------
-    // Gemini configuration
-    // --------------------------------------------------------
+      // --------------------------------------------------------
+      // Gemini configuration
+      // --------------------------------------------------------
 
-    const apiKey =
-      process.env.GEMINI_API_KEY;
+      const apiKey =
+        process.env.GEMINI_API_KEY;
 
-    const model =
-      process.env.GEMINI_MODEL ||
-      "gemini-3.6-flash";
+      if (!apiKey) {
+        return res.status(500).json({
+          success: false,
+          message:
+            "GEMINI_API_KEY is not configured",
+        });
+      }
 
-    if (!apiKey) {
-      return res.status(500).json({
-        success: false,
-        message:
-          "GEMINI_API_KEY is not configured",
-      });
-    }
+      // --------------------------------------------------------
+      // Mark submission UNDER_REVIEW
+      // --------------------------------------------------------
 
-    // --------------------------------------------------------
-    // Mark submission UNDER_REVIEW
-    // --------------------------------------------------------
+      await pool.query(
+        `
+        UPDATE round2_submissions
+        SET
+          status = 'UNDER_REVIEW',
+          updated_at = NOW()
+        WHERE id = $1
+        `,
+        [submission.id]
+      );
 
-    await pool.query(
-      `
-      UPDATE round2_submissions
-      SET
-        status = 'UNDER_REVIEW',
-        updated_at = NOW()
-      WHERE id = $1
-      `,
-      [submission.id]
-    );
+      // --------------------------------------------------------
+      // Prepare AI context
+      // --------------------------------------------------------
 
-    // --------------------------------------------------------
-    // Prepare AI context
-    // --------------------------------------------------------
+      const githubUrl =
+        submission.github_url ||
+        "Not provided";
 
-    const githubUrl =
-      submission.github_url ||
-      "Not provided";
+      const pdfText =
+        submission.extracted_text.trim();
 
-    const pdfText =
-      submission.extracted_text.trim();
+      const maxCharacters = 30000;
 
-    const maxCharacters = 30000;
+      const limitedPdfText =
+        pdfText.length >
+        maxCharacters
+          ? pdfText.substring(
+              0,
+              maxCharacters
+            ) +
+            "\n\n[PDF text truncated for AI analysis]"
+          : pdfText;
 
-    const limitedPdfText =
-      pdfText.length > maxCharacters
-        ? pdfText.substring(
-            0,
-            maxCharacters
-          ) +
-          "\n\n[PDF text truncated for AI analysis]"
-        : pdfText;
-
-    const prompt = `
+      const prompt = `
 You are an AI evaluation assistant for a student hackathon.
 
 You are analyzing a Round 2 project submission.
@@ -540,171 +875,44 @@ PROJECT REPORT EXTRACTED FROM PDF:
 ${limitedPdfText}
 `;
 
-    // --------------------------------------------------------
-    // Call Gemini
-    // --------------------------------------------------------
+      // --------------------------------------------------------
+      // Call Gemini with retry + fallback
+      // --------------------------------------------------------
 
-    const geminiResponse =
-      await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-        {
-          method: "POST",
+      const {
+        rawText,
+        model,
+      } =
+        await callGeminiWithFallback(
+          prompt,
+          apiKey
+        );
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+      // --------------------------------------------------------
+      // Parse JSON
+      // --------------------------------------------------------
 
-          body: JSON.stringify({
-            contents: [
-              {
-                role: "user",
-                parts: [
-                  {
-                    text: prompt,
-                  },
-                ],
-              },
-            ],
+      let analysis;
 
-            generationConfig: {
-              temperature: 0.2,
-              responseMimeType:
-                "application/json",
-            },
-          }),
-        }
-      );
+      try {
+        analysis = JSON.parse(
+          rawText
+            .replace(
+              /^```json\s*/i,
+              ""
+            )
+            .replace(
+              /\s*```$/i,
+              ""
+            )
+            .trim()
+        );
+      } catch (parseError) {
+        console.error(
+          "Gemini JSON parse error:",
+          parseError
+        );
 
-    // --------------------------------------------------------
-    // Gemini HTTP error
-    // --------------------------------------------------------
-
-    if (!geminiResponse.ok) {
-      const errorText =
-        await geminiResponse.text();
-
-      console.error(
-        "Gemini API error:",
-        errorText
-      );
-
-      await pool.query(
-        `
-        UPDATE round2_submissions
-        SET
-          status = 'SUBMITTED',
-          updated_at = NOW()
-        WHERE id = $1
-        `,
-        [submission.id]
-      );
-
-      return res.status(502).json({
-        success: false,
-        message:
-          "Gemini AI analysis failed",
-        error: errorText,
-      });
-    }
-
-    const geminiData =
-      await geminiResponse.json();
-
-    // --------------------------------------------------------
-    // Extract Gemini text
-    // --------------------------------------------------------
-
-    const rawText =
-      geminiData
-        ?.candidates?.[0]
-        ?.content?.parts?.[0]
-        ?.text;
-
-    if (!rawText) {
-      await pool.query(
-        `
-        UPDATE round2_submissions
-        SET
-          status = 'SUBMITTED',
-          updated_at = NOW()
-        WHERE id = $1
-        `,
-        [submission.id]
-      );
-
-      return res.status(502).json({
-        success: false,
-        message:
-          "Gemini returned an empty response",
-      });
-    }
-
-    // --------------------------------------------------------
-    // Parse JSON
-    // --------------------------------------------------------
-
-    let analysis;
-
-    try {
-      analysis = JSON.parse(
-        rawText
-          .replace(
-            /^```json\s*/i,
-            ""
-          )
-          .replace(
-            /\s*```$/i,
-            ""
-          )
-          .trim()
-      );
-    } catch (parseError) {
-      console.error(
-        "Gemini JSON parse error:",
-        parseError
-      );
-
-      await pool.query(
-        `
-        UPDATE round2_submissions
-        SET
-          status = 'SUBMITTED',
-          updated_at = NOW()
-        WHERE id = $1
-        `,
-        [submission.id]
-      );
-
-      return res.status(502).json({
-        success: false,
-        message:
-          "AI returned an invalid JSON response",
-      });
-    }
-
-    // --------------------------------------------------------
-    // Validate scores
-    // --------------------------------------------------------
-
-    const scoreFields = [
-      "novelty_score",
-      "relevance_score",
-      "innovation_score",
-      "technical_score",
-      "impact_score",
-      "overall_score",
-    ];
-
-    for (const field of scoreFields) {
-      const value =
-        Number(analysis[field]);
-
-      if (
-        Number.isNaN(value) ||
-        value < 0 ||
-        value > 100
-      ) {
         await pool.query(
           `
           UPDATE round2_submissions
@@ -719,744 +927,751 @@ ${limitedPdfText}
         return res.status(502).json({
           success: false,
           message:
-            `AI returned an invalid ${field}`,
-          value:
-            analysis[field],
+            "AI returned an invalid JSON response",
         });
       }
 
-      analysis[field] = value;
-    }
+      // --------------------------------------------------------
+      // Validate scores
+      // --------------------------------------------------------
 
-    // --------------------------------------------------------
-    // Normalize recommendation
-    // --------------------------------------------------------
+      const scoreFields = [
+        "novelty_score",
+        "relevance_score",
+        "innovation_score",
+        "technical_score",
+        "impact_score",
+        "overall_score",
+      ];
 
-    const allowedRecommendations = [
-      "SELECT",
-      "REVIEW",
-      "REJECT",
-    ];
+      for (const field of scoreFields) {
+        const value =
+          Number(
+            analysis[field]
+          );
 
-    let recommendation =
-      String(
-        analysis.recommendation ||
-          "REVIEW"
-      )
-        .trim()
-        .toUpperCase();
+        if (
+          Number.isNaN(value) ||
+          value < 0 ||
+          value > 100
+        ) {
+          await pool.query(
+            `
+            UPDATE round2_submissions
+            SET
+              status = 'SUBMITTED',
+              updated_at = NOW()
+            WHERE id = $1
+            `,
+            [submission.id]
+          );
 
-    if (
-      !allowedRecommendations.includes(
-        recommendation
-      )
-    ) {
-      recommendation = "REVIEW";
-    }
+          return res.status(502).json({
+            success: false,
+            message:
+              `AI returned an invalid ${field}`,
+            value:
+              analysis[field],
+          });
+        }
 
-    // --------------------------------------------------------
-    // Build feedback
-    // --------------------------------------------------------
+        analysis[field] =
+          value;
+      }
 
-    const feedback = {
-      strengths:
-        Array.isArray(
-          analysis.strengths
-        )
-          ? analysis.strengths
-          : [],
+      // --------------------------------------------------------
+      // Normalize recommendation
+      // --------------------------------------------------------
 
-      weaknesses:
-        Array.isArray(
-          analysis.weaknesses
-        )
-          ? analysis.weaknesses
-          : [],
-
-      suggestions:
-        Array.isArray(
-          analysis.suggestions
-        )
-          ? analysis.suggestions
-          : [],
-
-      feedback:
-        String(
-          analysis.feedback || ""
-        ),
-    };
-
-    // --------------------------------------------------------
-    // Save AI analysis
-    // --------------------------------------------------------
-
-    const analysisResult =
-      await pool.query(
-        `
-        INSERT INTO round2_ai_analysis (
-          round2_submission_id,
-          novelty_score,
-          relevance_score,
-          innovation_score,
-          technical_score,
-          impact_score,
-          overall_score,
-          recommendation,
-          feedback,
-          model_name,
-          created_at
-        )
-        VALUES (
-          $1,
-          $2,
-          $3,
-          $4,
-          $5,
-          $6,
-          $7,
-          $8,
-          $9,
-          $10,
-          NOW()
-        )
-        ON CONFLICT (round2_submission_id)
-        DO UPDATE SET
-          novelty_score =
-            EXCLUDED.novelty_score,
-
-          relevance_score =
-            EXCLUDED.relevance_score,
-
-          innovation_score =
-            EXCLUDED.innovation_score,
-
-          technical_score =
-            EXCLUDED.technical_score,
-
-          impact_score =
-            EXCLUDED.impact_score,
-
-          overall_score =
-            EXCLUDED.overall_score,
-
-          recommendation =
-            EXCLUDED.recommendation,
-
-          feedback =
-            EXCLUDED.feedback,
-
-          model_name =
-            EXCLUDED.model_name,
-
-          created_at =
-            NOW()
-
-        RETURNING *
-        `,
+      const allowedRecommendations =
         [
-          submission.id,
-          analysis.novelty_score,
-          analysis.relevance_score,
-          analysis.innovation_score,
-          analysis.technical_score,
-          analysis.impact_score,
-          analysis.overall_score,
-          recommendation,
-          JSON.stringify(feedback),
-          model,
-        ]
-      );
+          "SELECT",
+          "REVIEW",
+          "REJECT",
+        ];
 
-    // --------------------------------------------------------
-    // Mark submission REVIEWED
-    // --------------------------------------------------------
+      let recommendation =
+        String(
+          analysis.recommendation ||
+            "REVIEW"
+        )
+          .trim()
+          .toUpperCase();
 
-    await pool.query(
-      `
-      UPDATE round2_submissions
-      SET
-        status = 'REVIEWED',
-        updated_at = NOW()
-      WHERE id = $1
-      `,
-      [submission.id]
-    );
+      if (
+        !allowedRecommendations.includes(
+          recommendation
+        )
+      ) {
+        recommendation =
+          "REVIEW";
+      }
 
-    // --------------------------------------------------------
-    // Success
-    // --------------------------------------------------------
+      // --------------------------------------------------------
+      // Build feedback
+      // --------------------------------------------------------
 
-    return res.status(200).json({
-      success: true,
+      const feedback = {
+        strengths:
+          Array.isArray(
+            analysis.strengths
+          )
+            ? analysis.strengths
+            : [],
 
-      message:
-        "Round 2 submission analyzed successfully",
+        weaknesses:
+          Array.isArray(
+            analysis.weaknesses
+          )
+            ? analysis.weaknesses
+            : [],
 
-      submission_id:
-        submission.id,
+        suggestions:
+          Array.isArray(
+            analysis.suggestions
+          )
+            ? analysis.suggestions
+            : [],
 
-      analysis:
-        analysisResult.rows[0],
-    });
-  } catch (error) {
-    console.error(
-      "Analyze Round 2 submission error:",
-      error
-    );
+        feedback:
+          String(
+            analysis.feedback || ""
+          ),
+      };
 
-    // Restore status if possible
-    try {
-      if (req.params.submissionId) {
+      // --------------------------------------------------------
+      // Save AI analysis
+      // --------------------------------------------------------
+
+      const analysisResult =
         await pool.query(
           `
-          UPDATE round2_submissions
-          SET
-            status = 'SUBMITTED',
-            updated_at = NOW()
-          WHERE id = $1
-            AND status = 'UNDER_REVIEW'
+          INSERT INTO round2_ai_analysis (
+            round2_submission_id,
+            novelty_score,
+            relevance_score,
+            innovation_score,
+            technical_score,
+            impact_score,
+            overall_score,
+            recommendation,
+            feedback,
+            model_name,
+            created_at
+          )
+          VALUES (
+            $1,
+            $2,
+            $3,
+            $4,
+            $5,
+            $6,
+            $7,
+            $8,
+            $9,
+            $10,
+            NOW()
+          )
+          ON CONFLICT (round2_submission_id)
+          DO UPDATE SET
+            novelty_score =
+              EXCLUDED.novelty_score,
+
+            relevance_score =
+              EXCLUDED.relevance_score,
+
+            innovation_score =
+              EXCLUDED.innovation_score,
+
+            technical_score =
+              EXCLUDED.technical_score,
+
+            impact_score =
+              EXCLUDED.impact_score,
+
+            overall_score =
+              EXCLUDED.overall_score,
+
+            recommendation =
+              EXCLUDED.recommendation,
+
+            feedback =
+              EXCLUDED.feedback,
+
+            model_name =
+              EXCLUDED.model_name,
+
+            created_at =
+              NOW()
+
+          RETURNING *
           `,
-          [req.params.submissionId]
+          [
+            submission.id,
+            analysis.novelty_score,
+            analysis.relevance_score,
+            analysis.innovation_score,
+            analysis.technical_score,
+            analysis.impact_score,
+            analysis.overall_score,
+            recommendation,
+            JSON.stringify(
+              feedback
+            ),
+            model,
+          ]
         );
-      }
-    } catch (statusError) {
-      console.error(
-        "Failed to restore submission status:",
-        statusError
-      );
-    }
 
-    return res.status(500).json({
-      success: false,
-      message:
-        "Failed to analyze Round 2 submission",
-      error: error.message,
-    });
-  }
-};
+      // --------------------------------------------------------
+      // Mark submission REVIEWED
+      // --------------------------------------------------------
 
-
-// ============================================================
-// ORGANIZER DECISION
-// PATCH /api/organizer/round2/submissions/:submissionId/decision
-// ============================================================
-
-// ============================================================
-// ORGANIZER DECISION
-// PATCH /api/organizer/round2/submissions/:submissionId/decision
-// ============================================================
-
-export const decideRound2Submission = async (
-  req,
-  res
-) => {
-  try {
-    const { submissionId } = req.params;
-
-    const {
-      decision,
-      feedback,
-    } = req.body;
-
-    // --------------------------------------------------------
-    // Validate decision
-    // --------------------------------------------------------
-
-    const normalizedDecision =
-      String(decision || "")
-        .trim()
-        .toUpperCase();
-
-    if (
-      ![
-        "SELECTED",
-        "REJECTED",
-      ].includes(normalizedDecision)
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Decision must be SELECTED or REJECTED",
-      });
-    }
-
-    // --------------------------------------------------------
-    // Validate feedback
-    // --------------------------------------------------------
-
-    const organizerFeedback =
-      typeof feedback === "string"
-        ? feedback.trim()
-        : null;
-
-    // --------------------------------------------------------
-    // Get submission
-    // --------------------------------------------------------
-
-    const submissionResult =
       await pool.query(
         `
-        SELECT
-          rs.id,
-          rs.hackathon_id,
-          rs.team_id,
-          rs.status,
-
-          h.organizer_id,
-          h.current_round,
-          h.title AS hackathon_title
-
-        FROM round2_submissions rs
-
-        INNER JOIN hackathons h
-          ON h.id = rs.hackathon_id
-
-        WHERE rs.id = $1
-        LIMIT 1
-        `,
-        [submissionId]
-      );
-
-    if (
-      submissionResult.rows.length === 0
-    ) {
-      return res.status(404).json({
-        success: false,
-        message:
-          "Round 2 submission not found",
-      });
-    }
-
-    const submission =
-      submissionResult.rows[0];
-
-    // --------------------------------------------------------
-    // Permission
-    // --------------------------------------------------------
-
-    if (
-      req.user.role !== "ADMIN" &&
-      (
-        req.user.role !== "ORGANIZER" ||
-        submission.organizer_id !== req.user.id
-      )
-    ) {
-      return res.status(403).json({
-        success: false,
-        message:
-          "You do not have permission to decide this submission",
-      });
-    }
-
-    // --------------------------------------------------------
-    // Check submission status
-    // --------------------------------------------------------
-
-    const allowedStatuses = [
-      "SUBMITTED",
-      "UNDER_REVIEW",
-      "REVIEWED",
-    ];
-
-    if (
-      !allowedStatuses.includes(
-        submission.status
-      )
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "This submission cannot be reviewed in its current state",
-        current_status:
-          submission.status,
-      });
-    }
-
-    // --------------------------------------------------------
-    // Check whether AI analysis exists
-    // --------------------------------------------------------
-
-    const analysisResult =
-      await pool.query(
-        `
-        SELECT
-          id,
-          recommendation,
-          overall_score
-        FROM round2_ai_analysis
-        WHERE round2_submission_id = $1
-        LIMIT 1
+        UPDATE round2_submissions
+        SET
+          status = 'REVIEWED',
+          updated_at = NOW()
+        WHERE id = $1
         `,
         [submission.id]
       );
 
-    /*
-      AI analysis is advisory only.
+      // --------------------------------------------------------
+      // Success
+      // --------------------------------------------------------
 
-      Organizer/Admin remains the final decision-maker.
+      return res.status(200).json({
+        success: true,
 
-      Therefore we allow a decision even if AI analysis
-      has not been generated.
-    */
+        message:
+          "Round 2 submission analyzed successfully",
 
-    // --------------------------------------------------------
-    // Submission status
-    //
-    // IMPORTANT:
-    //
-    // round2_submissions.status is NOT the same thing as
-    // organizer decision.
-    //
-    // SELECTED -> submission remains REVIEWED
-    // REJECTED -> submission becomes REJECTED
-    //
-    // Actual decision is stored in round2_decisions.
-    // --------------------------------------------------------
+        submission_id:
+          submission.id,
 
-    const submissionStatus =
-      normalizedDecision === "REJECTED"
-        ? "REJECTED"
-        : "REVIEWED";
-
-    // --------------------------------------------------------
-    // TEAM STATUS
-    //
-    // SELECTED -> FINALIST
-    // REJECTED -> DISQUALIFIED
-    // --------------------------------------------------------
-
-    const teamStatus =
-      normalizedDecision === "SELECTED"
-        ? "FINALIST"
-        : "DISQUALIFIED";
-
-    // --------------------------------------------------------
-    // Transaction
-    // --------------------------------------------------------
-
-    const client =
-      await pool.connect();
-
-    try {
-      await client.query(
-        "BEGIN"
+        analysis:
+          analysisResult.rows[0],
+      });
+    } catch (error) {
+      console.error(
+        "Analyze Round 2 submission error:",
+        error
       );
 
-      // ------------------------------------------------------
-      // Lock submission
-      //
-      // Prevent two organizers/admins from making conflicting
-      // decisions at the exact same time.
-      // ------------------------------------------------------
-
-      const lockedSubmissionResult =
-        await client.query(
-          `
-          SELECT
-            id,
-            hackathon_id,
-            team_id,
-            status
-          FROM round2_submissions
-          WHERE id = $1
-          FOR UPDATE
-          `,
-          [submission.id]
-        );
-
-      if (
-        lockedSubmissionResult.rows.length === 0
-      ) {
-        throw new Error(
-          "Round 2 submission disappeared during transaction"
+      // Restore status if possible
+      try {
+        if (
+          req.params.submissionId
+        ) {
+          await pool.query(
+            `
+            UPDATE round2_submissions
+            SET
+              status = 'SUBMITTED',
+              updated_at = NOW()
+            WHERE id = $1
+              AND status = 'UNDER_REVIEW'
+            `,
+            [
+              req.params
+                .submissionId,
+            ]
+          );
+        }
+      } catch (statusError) {
+        console.error(
+          "Failed to restore submission status:",
+          statusError
         );
       }
 
-      const lockedSubmission =
-        lockedSubmissionResult.rows[0];
+      return res.status(500).json({
+        success: false,
+        message:
+          "Failed to analyze Round 2 submission",
+        error:
+          error.message,
+      });
+    }
+  };
 
-      // ------------------------------------------------------
-      // Check existing decision
-      // ------------------------------------------------------
+// ============================================================
+// ORGANIZER DECISION
+// PATCH /api/organizer/round2/submissions/:submissionId/decision
+// ============================================================
 
-      const existingDecision =
-        await client.query(
+export const decideRound2Submission =
+  async (req, res) => {
+    try {
+      const {
+        submissionId,
+      } = req.params;
+
+      const {
+        decision,
+        feedback,
+      } = req.body;
+
+      // --------------------------------------------------------
+      // Validate decision
+      // --------------------------------------------------------
+
+      const normalizedDecision =
+        String(decision || "")
+          .trim()
+          .toUpperCase();
+
+      if (
+        ![
+          "SELECTED",
+          "REJECTED",
+        ].includes(
+          normalizedDecision
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Decision must be SELECTED or REJECTED",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Validate feedback
+      // --------------------------------------------------------
+
+      const organizerFeedback =
+        typeof feedback ===
+        "string"
+          ? feedback.trim()
+          : null;
+
+      // --------------------------------------------------------
+      // Get submission
+      // --------------------------------------------------------
+
+      const submissionResult =
+        await pool.query(
           `
           SELECT
-            id
-          FROM round2_decisions
+            rs.id,
+            rs.hackathon_id,
+            rs.team_id,
+            rs.status,
+
+            h.organizer_id,
+            h.current_round,
+            h.title AS hackathon_title
+
+          FROM round2_submissions rs
+
+          INNER JOIN hackathons h
+            ON h.id = rs.hackathon_id
+
+          WHERE rs.id = $1
+          LIMIT 1
+          `,
+          [submissionId]
+        );
+
+      if (
+        submissionResult.rows
+          .length === 0
+      ) {
+        return res.status(404).json({
+          success: false,
+          message:
+            "Round 2 submission not found",
+        });
+      }
+
+      const submission =
+        submissionResult.rows[0];
+
+      // --------------------------------------------------------
+      // Permission
+      // --------------------------------------------------------
+
+      if (
+        req.user.role !== "ADMIN" &&
+        (
+          req.user.role !==
+            "ORGANIZER" ||
+          submission.organizer_id !==
+            req.user.id
+        )
+      ) {
+        return res.status(403).json({
+          success: false,
+          message:
+            "You do not have permission to decide this submission",
+        });
+      }
+
+      // --------------------------------------------------------
+      // Check submission status
+      // --------------------------------------------------------
+
+      const allowedStatuses = [
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "REVIEWED",
+      ];
+
+      if (
+        !allowedStatuses.includes(
+          submission.status
+        )
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "This submission cannot be reviewed in its current state",
+          current_status:
+            submission.status,
+        });
+      }
+
+      // --------------------------------------------------------
+      // Check whether AI analysis exists
+      // --------------------------------------------------------
+
+      const analysisResult =
+        await pool.query(
+          `
+          SELECT
+            id,
+            recommendation,
+            overall_score
+          FROM round2_ai_analysis
           WHERE round2_submission_id = $1
           LIMIT 1
           `,
           [submission.id]
         );
 
-      let decisionResult;
-
-      if (
-        existingDecision.rows.length > 0
-      ) {
-        // ----------------------------------------------------
-        // Update existing decision
-        // ----------------------------------------------------
-
-        decisionResult =
-          await client.query(
-            `
-            UPDATE round2_decisions
-            SET
-              decision = $1,
-              decided_by = $2,
-              organizer_feedback = $3,
-              decided_at = NOW()
-            WHERE round2_submission_id = $4
-            RETURNING *
-            `,
-            [
-              normalizedDecision,
-              req.user.id,
-              organizerFeedback,
-              submission.id,
-            ]
-          );
-      } else {
-        // ----------------------------------------------------
-        // Create decision
-        // ----------------------------------------------------
-
-        decisionResult =
-          await client.query(
-            `
-            INSERT INTO round2_decisions (
-              hackathon_id,
-              team_id,
-              round2_submission_id,
-              decision,
-              decided_by,
-              organizer_feedback,
-              decided_at
-            )
-            VALUES (
-              $1,
-              $2,
-              $3,
-              $4,
-              $5,
-              $6,
-              NOW()
-            )
-            RETURNING *
-            `,
-            [
-              submission.hackathon_id,
-              submission.team_id,
-              submission.id,
-              normalizedDecision,
-              req.user.id,
-              organizerFeedback,
-            ]
-          );
-      }
-
-      // ------------------------------------------------------
-      // Update submission status
-      // ------------------------------------------------------
-
-      await client.query(
-        `
-        UPDATE round2_submissions
-        SET
-          status = $1,
-          updated_at = NOW()
-        WHERE id = $2
-        `,
-        [
-          submissionStatus,
-          submission.id,
-        ]
-      );
-
-      // ------------------------------------------------------
-      // Update team status
-      //
-      // This is the important missing part.
-      //
-      // SELECTED:
-      //   team -> FINALIST
-      //
-      // REJECTED:
-      //   team -> DISQUALIFIED
-      // ------------------------------------------------------
-
-      await client.query(
-        `
-        UPDATE teams
-        SET
-          status = $1,
-          updated_at = NOW()
-        WHERE id = $2
-        `,
-        [
-          teamStatus,
-          submission.team_id,
-        ]
-      );
-
       /*
-        IMPORTANT:
+        AI analysis is advisory only.
 
-        We intentionally DO NOT update:
+        Organizer/Admin remains the final decision-maker.
 
-          hackathons.current_round
-
-        Selecting one team for Round 3 must NOT automatically
-        move the entire hackathon to Round 3.
-
-        Round 3 activation is handled separately by the
-        hackathon round activation endpoint.
+        Therefore we allow a decision even if AI analysis
+        has not been generated.
       */
 
-      // ------------------------------------------------------
-      // Get updated team
-      // ------------------------------------------------------
+      // --------------------------------------------------------
+      // Submission status
+      // --------------------------------------------------------
 
-      const updatedTeamResult =
+      const submissionStatus =
+        normalizedDecision ===
+        "REJECTED"
+          ? "REJECTED"
+          : "REVIEWED";
+
+      // --------------------------------------------------------
+      // TEAM STATUS
+      // --------------------------------------------------------
+
+      const teamStatus =
+        normalizedDecision ===
+        "SELECTED"
+          ? "FINALIST"
+          : "DISQUALIFIED";
+
+      // --------------------------------------------------------
+      // Transaction
+      // --------------------------------------------------------
+
+      const client =
+        await pool.connect();
+
+      try {
         await client.query(
-          `
-          SELECT
-            id,
-            name,
-            status
-          FROM teams
-          WHERE id = $1
-          LIMIT 1
-          `,
-          [submission.team_id]
+          "BEGIN"
         );
 
-      const updatedTeam =
-        updatedTeamResult.rows[0] || null;
+        // ------------------------------------------------------
+        // Lock submission
+        // ------------------------------------------------------
 
-      // ------------------------------------------------------
-      // COMMIT
-      // ------------------------------------------------------
+        const lockedSubmissionResult =
+          await client.query(
+            `
+            SELECT
+              id,
+              hackathon_id,
+              team_id,
+              status
+            FROM round2_submissions
+            WHERE id = $1
+            FOR UPDATE
+            `,
+            [submission.id]
+          );
 
-      await client.query(
-        "COMMIT"
-      );
+        if (
+          lockedSubmissionResult
+            .rows.length === 0
+        ) {
+          throw new Error(
+            "Round 2 submission disappeared during transaction"
+          );
+        }
 
-      // ------------------------------------------------------
-      // Success
-      // ------------------------------------------------------
+        const lockedSubmission =
+          lockedSubmissionResult
+            .rows[0];
 
-      return res.status(200).json({
-        success: true,
+        // ------------------------------------------------------
+        // Check existing decision
+        // ------------------------------------------------------
 
-        message:
-          normalizedDecision === "SELECTED"
-            ? "Round 2 submission selected successfully."
-            : "Round 2 submission rejected successfully.",
+        const existingDecision =
+          await client.query(
+            `
+            SELECT
+              id
+            FROM round2_decisions
+            WHERE round2_submission_id = $1
+            LIMIT 1
+            `,
+            [submission.id]
+          );
 
-        // ----------------------------------------------------
-        // Main decision
-        // ----------------------------------------------------
+        let decisionResult;
 
-        decision:
-          normalizedDecision,
+        if (
+          existingDecision.rows
+            .length > 0
+        ) {
+          // ----------------------------------------------------
+          // Update existing decision
+          // ----------------------------------------------------
 
-        // ----------------------------------------------------
-        // Submission information
-        // ----------------------------------------------------
+          decisionResult =
+            await client.query(
+              `
+              UPDATE round2_decisions
+              SET
+                decision = $1,
+                decided_by = $2,
+                organizer_feedback = $3,
+                decided_at = NOW()
+              WHERE round2_submission_id = $4
+              RETURNING *
+              `,
+              [
+                normalizedDecision,
+                req.user.id,
+                organizerFeedback,
+                submission.id,
+              ]
+            );
+        } else {
+          // ----------------------------------------------------
+          // Create decision
+          // ----------------------------------------------------
 
-        submission: {
-          id:
-            submission.id,
+          decisionResult =
+            await client.query(
+              `
+              INSERT INTO round2_decisions (
+                hackathon_id,
+                team_id,
+                round2_submission_id,
+                decision,
+                decided_by,
+                organizer_feedback,
+                decided_at
+              )
+              VALUES (
+                $1,
+                $2,
+                $3,
+                $4,
+                $5,
+                $6,
+                NOW()
+              )
+              RETURNING *
+              `,
+              [
+                submission.hackathon_id,
+                submission.team_id,
+                submission.id,
+                normalizedDecision,
+                req.user.id,
+                organizerFeedback,
+              ]
+            );
+        }
 
-          status:
+        // ------------------------------------------------------
+        // Update submission status
+        // ------------------------------------------------------
+
+        await client.query(
+          `
+          UPDATE round2_submissions
+          SET
+            status = $1,
+            updated_at = NOW()
+          WHERE id = $2
+          `,
+          [
             submissionStatus,
+            submission.id,
+          ]
+        );
 
-          team_id:
+        // ------------------------------------------------------
+        // Update team status
+        // ------------------------------------------------------
+
+        await client.query(
+          `
+          UPDATE teams
+          SET
+            status = $1,
+            updated_at = NOW()
+          WHERE id = $2
+          `,
+          [
+            teamStatus,
             submission.team_id,
+          ]
+        );
 
-          hackathon_id:
-            submission.hackathon_id,
+        /*
+          IMPORTANT:
 
-          // IMPORTANT:
-          // Frontend can directly use this.
+          We intentionally DO NOT update:
+
+            hackathons.current_round
+
+          Selecting one team for Round 3 must NOT automatically
+          move the entire hackathon to Round 3.
+
+          Round 3 activation is handled separately by the
+          hackathon round activation endpoint.
+        */
+
+        // ------------------------------------------------------
+        // Get updated team
+        // ------------------------------------------------------
+
+        const updatedTeamResult =
+          await client.query(
+            `
+            SELECT
+              id,
+              name,
+              status
+            FROM teams
+            WHERE id = $1
+            LIMIT 1
+            `,
+            [submission.team_id]
+          );
+
+        const updatedTeam =
+          updatedTeamResult.rows[0] ||
+          null;
+
+        // ------------------------------------------------------
+        // COMMIT
+        // ------------------------------------------------------
+
+        await client.query(
+          "COMMIT"
+        );
+
+        // ------------------------------------------------------
+        // Success
+        // ------------------------------------------------------
+
+        return res.status(200).json({
+          success: true,
+
+          message:
+            normalizedDecision ===
+            "SELECTED"
+              ? "Round 2 submission selected successfully."
+              : "Round 2 submission rejected successfully.",
+
           decision:
             normalizedDecision,
-        },
 
-        // ----------------------------------------------------
-        // Team information
-        // ----------------------------------------------------
+          submission: {
+            id: submission.id,
 
-        team: updatedTeam
-          ? {
-              id:
-                updatedTeam.id,
+            status:
+              submissionStatus,
 
-              name:
-                updatedTeam.name,
+            team_id:
+              submission.team_id,
 
-              status:
-                updatedTeam.status,
-            }
-          : {
-              id:
-                submission.team_id,
+            hackathon_id:
+              submission.hackathon_id,
 
-              status:
-                teamStatus,
-            },
+            decision:
+              normalizedDecision,
+          },
 
-        // ----------------------------------------------------
-        // Organizer feedback
-        // ----------------------------------------------------
+          team: updatedTeam
+            ? {
+                id:
+                  updatedTeam.id,
 
-        organizer_feedback:
-          organizerFeedback,
+                name:
+                  updatedTeam.name,
 
-        // ----------------------------------------------------
-        // AI information
-        // ----------------------------------------------------
+                status:
+                  updatedTeam.status,
+              }
+            : {
+                id:
+                  submission.team_id,
 
-        ai_analysis_available:
-          analysisResult.rows.length > 0,
+                status:
+                  teamStatus,
+              },
 
-        // ----------------------------------------------------
-        // Decision database record
-        // ----------------------------------------------------
+          organizer_feedback:
+            organizerFeedback,
 
-        decision_record:
-          decisionResult.rows[0],
-      });
+          ai_analysis_available:
+            analysisResult.rows
+              .length > 0,
 
-    } catch (transactionError) {
-      await client.query(
-        "ROLLBACK"
+          decision_record:
+            decisionResult.rows[0],
+        });
+      } catch (transactionError) {
+        await client.query(
+          "ROLLBACK"
+        );
+
+        throw transactionError;
+      } finally {
+        client.release();
+      }
+    } catch (error) {
+      console.error(
+        "Decide Round 2 submission error:",
+        error
       );
 
-      throw transactionError;
+      return res.status(500).json({
+        success: false,
 
-    } finally {
-      client.release();
+        message:
+          "Failed to decide Round 2 submission",
+
+        error:
+          error.message,
+      });
     }
-
-  } catch (error) {
-    console.error(
-      "Decide Round 2 submission error:",
-      error
-    );
-
-    return res.status(500).json({
-      success: false,
-
-      message:
-        "Failed to decide Round 2 submission",
-
-      error:
-        error.message,
-    });
-  }
-};
+  };
